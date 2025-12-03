@@ -3,6 +3,7 @@ import "react-toastify/dist/ReactToastify.css";
 import type { AppProps } from "next/app";
 import { useEffect } from "react";
 import { ToastContainer } from "react-toastify";
+import { Analytics } from "@vercel/analytics/react";
 
 export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function App({ Component, pageProps }: AppProps) {
         pauseOnHover
         theme="colored"
       />
+      <Analytics />
     </>
   );
 }
