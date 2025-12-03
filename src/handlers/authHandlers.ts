@@ -41,7 +41,7 @@ export const handleLogin = async (
         return;
       }
 
-      switch (profile.role) {
+      switch ((profile as any).role) {
         case "system_admin":
           router.push("/dashboard");
           break;

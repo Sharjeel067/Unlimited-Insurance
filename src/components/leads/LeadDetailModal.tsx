@@ -171,8 +171,8 @@ export function LeadDetailModal({ lead, isOpen, onClose, onLeadUpdated }: LeadDe
         }
       });
 
-      const { error } = await supabase
-        .from("leads")
+      const { error } = await (supabase
+        .from("leads") as any)
         .update(updatePayload)
         .eq("id", lead.id);
 

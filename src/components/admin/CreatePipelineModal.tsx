@@ -70,8 +70,8 @@ export function CreatePipelineModal({ onPipelineCreated }: CreatePipelineModalPr
       }
 
       // Create pipeline
-      const { data: pipeline, error: pipelineError } = await supabase
-        .from("pipelines")
+      const { data: pipeline, error: pipelineError } = await (supabase
+        .from("pipelines") as any)
         .insert({ 
           name: pipelineName,
           type: "transfer" 
@@ -91,8 +91,8 @@ export function CreatePipelineModal({ onPipelineCreated }: CreatePipelineModalPr
         is_default: idx === 0
       }));
 
-      const { error: stagesError } = await supabase
-        .from("stages")
+      const { error: stagesError } = await (supabase
+        .from("stages") as any)
         .insert(stagesToInsert);
 
       if (stagesError) throw stagesError;

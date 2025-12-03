@@ -80,7 +80,7 @@ export function LeadFormModal({ onLeadCreated }: LeadFormModalProps) {
 
       const { beneficiary_name, beneficiary_relation, ...dbData } = data;
       
-      const { error } = await supabase.from("leads").insert({
+      const { error } = await (supabase.from("leads") as any).insert({
         ...dbData,
         submission_id: `SUB-${Date.now()}`, 
         pipeline_id: (firstPipeline as any).id,

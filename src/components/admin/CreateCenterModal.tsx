@@ -28,8 +28,8 @@ export function CreateCenterModal({ onCenterCreated }: CreateCenterModalProps) {
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("call_centers")
+      const { error } = await (supabase
+        .from("call_centers") as any)
         .insert({ name, location });
 
       if (error) throw error;
