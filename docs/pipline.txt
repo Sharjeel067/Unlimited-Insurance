@@ -1,0 +1,44 @@
+1. Transfer Portal
+Transfer API
+Chargeback Fix API
+Incomplete Transfer
+Returned To Center - DQ
+Previously Sold BPO
+DQ'd Can't be sold
+Needs BPO Callback
+Application Withdrawn
+Declined Underwriting
+Pending Approval
+Pending Manual Action
+
+2. Customer Pipeline
+Issued - Pending First Draft
+Premium Paid - Commission Pending
+ACTIVE PLACED - Paid as Earned
+ACTIVE PLACED - Paid as Advanced
+ACTIVE - 3 Months +
+ACTIVE - 6 months +
+ACTIVE - 9 months
+ACTIVE - Past Charge-Back Period
+
+3. Chargeback Pipeline
+FDPF Pending Reason
+FDPF Insufficient Funds
+FDPF Incorrect Banking Info
+FDPF Unauthorized Draft
+Pending Failed Payment Fix
+Pending Lapse
+Chargeback Failed Payment
+Chargeback Cancellation
+Pending Chargeback Fix
+Chargeback Fixed
+Chargeback DQ
+
+4. Marketing Pipeline
+Form API
+Call API
+No Pickup - Needs Connection
+Pickup - Needs Call Back
+Qualified - Needs Conversion
+Disqualified - Don't Call
+Transferred - Don't Touch
