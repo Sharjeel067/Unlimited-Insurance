@@ -15,10 +15,17 @@ import { toast } from "react-toastify";
 
 interface CreateUserModalProps {
   onUserCreated: () => void;
+  userToEdit?: any; // Using any to be flexible with the profile type, or define an interface
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function CreateUserModal({ onUserCreated }: CreateUserModalProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function CreateUserModal({ onUserCreated, userToEdit, isOpen: controlledOpen, onClose }: CreateUserModalProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalOpen;
+  const setIsOpen = isControlled ? (val: boolean) => { if (!val && onClose) onClose(); } : setInternalOpen;
+
   const [loading, setLoading] = useState(false);
   
   // Form Fields
@@ -36,8 +43,19 @@ export function CreateUserModal({ onUserCreated }: CreateUserModalProps) {
   useEffect(() => {
     if (isOpen) {
       fetchDropdownData();
+      if (userToEdit) {
+        // Populate form for editing
+        setEmail(userToEdit.email || "");
+        setFullName(userToEdit.full_name || "");
+        setRole(userToEdit.role || "sales_agent_unlicensed");
+        setCallCenterId(userToEdit.call_center_id || "");
+        setManagerId(userToEdit.manager_id || "");
+        setPassword(""); // Don't populate password
+      } else {
+        resetForm();
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, userToEdit]);
 
   const fetchDropdownData = async () => {
     const { data: centersData } = await supabase.from("call_centers").select("id, name");
@@ -55,29 +73,48 @@ export function CreateUserModal({ onUserCreated }: CreateUserModalProps) {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/users/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          full_name: fullName,
-          role,
-          call_center_id: callCenterId || null,
-          manager_id: managerId || null
-        })
-      });
+      if (userToEdit) {
+        // Update existing user
+        const { error } = await (supabase
+          .from('profiles') as any)
+          .update({
+            full_name: fullName,
+            role,
+            call_center_id: callCenterId || null,
+            manager_id: managerId || null,
+          })
+          .eq('id', userToEdit.id);
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+        if (error) throw error;
+        
+        toast.success("User updated successfully");
+        setIsOpen(false);
+        onUserCreated(); 
+      } else {
+        const response = await fetch('/api/users/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            full_name: fullName,
+            role,
+            call_center_id: callCenterId || null,
+            manager_id: managerId || null
+          })
+        });
 
-      setIsOpen(false);
-      resetForm();
-      toast.success("User created successfully");
-      onUserCreated();
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        setIsOpen(false);
+        resetForm();
+        toast.success("User created successfully");
+        onUserCreated();
+      }
     } catch (error: any) {
-      console.error("Error creating user:", error);
-      toast.error(error.message || "Failed to create user");
+      console.error("Error saving user:", error);
+      toast.error(error.message || "Failed to save user");
     } finally {
       setLoading(false);
     }
@@ -94,17 +131,19 @@ export function CreateUserModal({ onUserCreated }: CreateUserModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
-      </DialogTrigger>
+      {!userToEdit && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
+          <DialogTitle>{userToEdit ? "Edit User" : "Create New User"}</DialogTitle>
           <DialogDescription>
-            Add a new user to the system.
+            {userToEdit ? "Update user details." : "Add a new user to the system."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -125,18 +164,21 @@ export function CreateUserModal({ onUserCreated }: CreateUserModalProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="john@example.com"
+              disabled={!!userToEdit} // Disable email editing in edit mode
             />
           </div>
-          <div>
-            <label className="text-sm font-medium">Password</label>
-            <Input
-              required
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="******"
-            />
-          </div>
+          {!userToEdit && (
+            <div>
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                required
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="******"
+              />
+            </div>
+          )}
           
           <div>
             <label className="text-sm font-medium">Role</label>
@@ -187,10 +229,20 @@ export function CreateUserModal({ onUserCreated }: CreateUserModalProps) {
             </div>
           )}
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {userToEdit && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsOpen(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            )}
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create User
+              {userToEdit ? "Save" : "Create User"}
             </Button>
           </div>
         </form>

@@ -54,7 +54,7 @@ export const handleLogin = async (
           router.push("/dashboard");
           break;
         case "call_center_agent":
-          router.push("/leads/new");
+          router.push("/leads");
           break;
         default:
           router.push("/dashboard");
@@ -69,6 +69,9 @@ export const handleLogin = async (
 
 export const handleLogout = async (router: NextRouter) => {
   await supabase.auth.signOut();
+  // Clear user info from localStorage
+  localStorage.removeItem("userInfo");
+  localStorage.removeItem("userRole");
   router.push("/");
 };
 

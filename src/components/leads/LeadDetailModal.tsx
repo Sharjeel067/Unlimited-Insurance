@@ -495,7 +495,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onLeadUpdated }: LeadDe
                 ) : (
                   <p className="font-medium mt-1">{lead.health_conditions || "N/A"}</p>
                 )}
-              </div>
+                  </div>
                   <div className="md:col-span-2">
                 <label className="text-muted-foreground">Medications</label>
                 {isEditing ? (
@@ -561,7 +561,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onLeadUpdated }: LeadDe
                   <p className="font-medium">{lead.draft_date || "N/A"}</p>
                 )}
                     </div>
-              <div className="md:col-span-2">
+                  <div className="md:col-span-2">
                 <label className="text-muted-foreground">Existing Coverage</label>
                 {isEditing ? (
                   <Input
@@ -614,7 +614,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onLeadUpdated }: LeadDe
                 ) : (
                   <p className="font-medium">{lead.bank_name || "N/A"}</p>
                 )}
-              </div>
+                  </div>
                   <div>
                 <label className="text-muted-foreground">Routing Number</label>
                 {isEditing ? (
@@ -626,7 +626,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onLeadUpdated }: LeadDe
                 ) : (
                   <p className="font-medium">{lead.routing_number ? "****" + lead.routing_number.slice(-4) : "N/A"}</p>
                 )}
-              </div>
+                  </div>
                   <div>
                 <label className="text-muted-foreground">Account Number</label>
                 {isEditing ? (

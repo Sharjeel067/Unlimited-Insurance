@@ -2,8 +2,9 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Head from "next/head";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { CreateCenterModal } from "@/components/admin/CreateCenterModal";
-import { Loader2, MapPin } from "lucide-react";
+import { CreateCenterModal } from "@/components/CreateCenterModal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Loader2, MapPin, Trash2 } from "lucide-react";
 
 interface CallCenter {
   id: string;
@@ -16,6 +17,15 @@ interface CallCenter {
 export default function CallCentersPage() {
   const [centers, setCenters] = useState<CallCenter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [centerToDelete, setCenterToDelete] = useState<CallCenter | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
+  }, []);
 
   const fetchCenters = async () => {
     setLoading(true);
@@ -41,6 +51,36 @@ export default function CallCentersPage() {
   useEffect(() => {
     fetchCenters();
   }, []);
+
+  const handleDeleteClick = (center: CallCenter) => {
+    setCenterToDelete(center);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!centerToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("call_centers")
+        .delete()
+        .eq("id", centerToDelete.id);
+
+      if (error) {
+        console.error("Error deleting center:", error);
+        alert("Failed to delete center. Ensure there are no agents assigned to this center before deleting.");
+      } else {
+        setCenters(centers.filter(c => c.id !== centerToDelete.id));
+        setDeleteModalOpen(false);
+        setCenterToDelete(null);
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -80,7 +120,15 @@ export default function CallCentersPage() {
                 <h3 className="text-lg font-semibold text-foreground">
                   {center.name}
                 </h3>
-                {/* Add menu for Edit/Delete here later */}
+                {userRole === 'system_admin' && (
+                    <button 
+                        onClick={() => handleDeleteClick(center)}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                        title="Delete Call Center"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                )}
               </div>
               
               <div className="space-y-3">
@@ -104,6 +152,17 @@ export default function CallCentersPage() {
           ))}
         </div>
       )}
+      
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Call Center"
+        description={`Are you sure you want to delete ${centerToDelete?.name}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        loading={isDeleting}
+      />
     </DashboardLayout>
   );
 }

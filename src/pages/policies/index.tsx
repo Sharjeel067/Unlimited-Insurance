@@ -2,7 +2,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Head from "next/head";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, Shield, DollarSign, Calendar } from "lucide-react";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Loader2, Shield, DollarSign, Calendar, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,15 @@ const statusColors: Record<string, string> = {
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [policyToDelete, setPolicyToDelete] = useState<Policy | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
+  }, []);
 
   const fetchPolicies = async () => {
     setLoading(true);
@@ -46,6 +56,36 @@ export default function PoliciesPage() {
   useEffect(() => {
     fetchPolicies();
   }, []);
+
+  const handleDeleteClick = (policy: Policy) => {
+    setPolicyToDelete(policy);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!policyToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("policies")
+        .delete()
+        .eq("id", policyToDelete.id);
+
+      if (error) {
+        console.error("Error deleting policy:", error);
+        alert("Failed to delete policy. You might not have permission.");
+      } else {
+        setPolicies(policies.filter(p => p.id !== policyToDelete.id));
+        setDeleteModalOpen(false);
+        setPolicyToDelete(null);
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -78,6 +118,7 @@ export default function PoliciesPage() {
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Premium</th>
                 <th className="px-6 py-4">Effective Date</th>
+                {userRole === 'system_admin' && <th className="px-6 py-4 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -110,12 +151,34 @@ export default function PoliciesPage() {
                         {policy.effective_date ? format(new Date(policy.effective_date), "MMM d, yyyy") : "-"}
                     </div>
                   </td>
+                  {userRole === 'system_admin' && (
+                    <td className="px-6 py-4 text-right">
+                        <button 
+                            onClick={() => handleDeleteClick(policy)}
+                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                            title="Delete Policy"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Policy"
+        description={`Are you sure you want to delete policy ${policyToDelete?.policy_number}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        loading={isDeleting}
+      />
     </DashboardLayout>
   );
 }

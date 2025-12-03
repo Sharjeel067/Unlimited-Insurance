@@ -2,8 +2,9 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import Head from "next/head";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { CreateUserModal } from "@/components/admin/CreateUserModal";
-import { Loader2, User, Mail, Briefcase } from "lucide-react";
+import { CreateUserModal } from "@/components/CreateUserModal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Loader2, User, Mail, Briefcase, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Profile {
@@ -36,6 +37,22 @@ const roleColors: Record<string, string> = {
 export default function UsersPage() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Delete State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Edit State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<Profile | null>(null);
+  
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole");
+    setCurrentUserRole(role);
+  }, []);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -55,6 +72,45 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const handleDeleteClick = (user: Profile) => {
+    setUserToDelete(user);
+    setDeleteModalOpen(true);
+  };
+
+  const handleEditClick = (user: Profile) => {
+    setUserToEdit(user);
+    setEditModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      // Note: This deletes from the 'profiles' table.
+      // If you want to delete from auth.users as well, you need to do it via Supabase Admin API (server-side)
+      // or rely on database triggers if you have them set up to cascade back to auth.users (rare).
+      // Usually, deleting from profiles is enough for the application logic, but the auth user remains.
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userToDelete.id);
+
+      if (error) {
+        console.error("Error deleting user:", error);
+        alert("Failed to delete user. You might not have permission.");
+      } else {
+        setUsers(users.filter(u => u.id !== userToDelete.id));
+        setDeleteModalOpen(false);
+        setUserToDelete(null);
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -86,7 +142,7 @@ export default function UsersPage() {
                   <th className="px-6 py-4">Role</th>
                   <th className="px-6 py-4">Assignment</th>
                   <th className="px-6 py-4">Status</th>
-                  {/* <th className="px-6 py-4 text-right">Actions</th> */}
+                  {currentUserRole === 'system_admin' && <th className="px-6 py-4 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -127,12 +183,60 @@ export default function UsersPage() {
                         Active
                       </span>
                     </td>
+                    {currentUserRole === 'system_admin' && (
+                        <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                                <button 
+                                    onClick={() => handleEditClick(user)}
+                                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                    title="Edit User"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </button>
+                                <button 
+                                    onClick={() => handleDeleteClick(user)}
+                                    className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                                    title="Delete User"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+      )}
+      
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete User"
+        description={`Are you sure you want to delete ${userToDelete?.full_name}? This will remove their profile from the system.`}
+        confirmText="Delete"
+        variant="destructive"
+        loading={isDeleting}
+      />
+      
+      {/* Edit Modal */}
+      {userToEdit && (
+        <CreateUserModal 
+            isOpen={editModalOpen}
+            onClose={() => {
+                setEditModalOpen(false);
+                setUserToEdit(null);
+            }}
+            onUserCreated={() => {
+                fetchUsers();
+                setEditModalOpen(false);
+                setUserToEdit(null);
+            }}
+            userToEdit={userToEdit}
+        />
       )}
     </DashboardLayout>
   );

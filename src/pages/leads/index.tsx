@@ -1,11 +1,14 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Head from "next/head";
 import { Button } from "@/components/ui/Button";
-import { LeadFormModal } from "@/components/leads/LeadFormModal";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, User, Calendar, Phone, MapPin } from "lucide-react";
+import { Loader2, User, Calendar, Phone, MapPin, Plus, Pencil, Trash2, Upload } from "lucide-react";
 import { format } from "date-fns";
+import { useRouter } from "next/router";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { BulkUploadModal } from "@/components/leads/BulkUploadModal";
+import { getLeadsViewFilter, canDeleteLead, isValidRole, type UserRole } from "@/lib/permissions";
 
 interface Lead {
   id: string;
@@ -15,71 +18,140 @@ interface Lead {
   state: string;
   created_at: string;
   assigned_agent_id: string | null;
-  profiles?: { full_name: string }; // joined assigned_agent data
+  profiles?: { full_name: string }; 
+  pipelines?: { name: string; type: string };
+  stages?: { name: string; color_code: string };
+  call_center_id?: string | null;
+  call_centers?: { name: string }; 
 }
 
-interface Agent {
-  id: string;
-  full_name: string;
-}
+import { getContrastTextColor } from "@/lib/utils";
 
 export default function LeadsPage() {
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userCallCenterId, setUserCallCenterId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUserId(session.user.id);
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, call_center_id")
+          .eq("id", session.user.id)
+          .single();
+        if (profile) {
+          const role = (profile as any).role;
+          if (isValidRole(role)) {
+            setUserRole(role);
+          }
+          setUserCallCenterId((profile as any).call_center_id);
+        }
+      }
+    };
+    checkUser();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     
-    // Fetch Leads
-    const { data: leadsData, error: leadsError } = await supabase
+    // Get current user
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, call_center_id")
+      .eq("id", session.user.id)
+      .single();
+
+    const role = (profile as any)?.role;
+    const callCenterId = (profile as any)?.call_center_id;
+
+    if (!isValidRole(role)) {
+      setLoading(false);
+      return;
+    }
+
+    // Build query
+    let query = supabase
       .from("leads")
       .select(`
         *,
-        profiles:assigned_agent_id ( full_name )
-      `)
-      .order("created_at", { ascending: false });
+        profiles:assigned_agent_id ( full_name ),
+        pipelines:pipeline_id ( name, type ),
+        stages:stage_id ( name, color_code ),
+        call_centers:call_center_id ( name )
+      `);
+
+    // Apply role-based filtering
+    const filter = getLeadsViewFilter(role, session.user.id);
+    if (filter.filterBy === "assigned_agent_id" && filter.value) {
+      query = query.eq("assigned_agent_id", filter.value);
+    } else if (filter.filterBy === "call_center_id" && callCenterId) {
+      query = query.eq("call_center_id", callCenterId);
+    } else if (filter.filterBy === "user_id" && filter.value) {
+      query = query.eq("user_id", filter.value);
+    }
+    // If filterBy is "all" or null, no filter is applied (show all leads)
+
+    const { data: leadsData, error: leadsError } = await query.order("created_at", { ascending: false });
 
     if (leadsError) console.error("Error fetching leads:", leadsError);
     else setLeads(leadsData as any || []);
-
-    // Fetch Agents for assignment dropdown
-    const { data: agentsData } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("role", ["sales_agent_licensed", "sales_agent_unlicensed"]);
-    
-    if (agentsData) setAgents(agentsData as any || []);
     
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
-  }, [refreshTrigger]);
+    if (userId !== null && userRole !== null) {
+      fetchData();
+    }
+  }, [userId, userRole]);
 
-  const handleLeadCreated = () => {
-    setRefreshTrigger(prev => prev + 1);
+  const handleEditClick = (leadId: string) => {
+    router.push(`/leads/createLead?id=${leadId}`);
   };
 
-  const handleAssignAgent = async (leadId: string, agentId: string) => {
-    // Optimistic update
-    setLeads(prev => prev.map(lead => 
-        lead.id === leadId 
-            ? { ...lead, assigned_agent_id: agentId, profiles: { full_name: agents.find(a => a.id === agentId)?.full_name || "" } } 
-            : lead
-    ));
+  const handleDeleteClick = (lead: Lead) => {
+    setLeadToDelete(lead);
+    setDeleteModalOpen(true);
+  };
 
-    const { error } = await (supabase
-      .from("leads") as any)
-      .update({ assigned_agent_id: agentId })
-      .eq("id", leadId);
+  const confirmDelete = async () => {
+    if (!leadToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", leadToDelete.id);
 
-    if (error) {
-        console.error("Error assigning agent:", error);
-        // Revert on error (could refine this)
-        fetchData();
+      if (error) {
+        console.error("Error deleting lead:", error);
+        alert("Failed to delete lead. You might not have permission.");
+      } else {
+        setLeads(leads.filter(l => l.id !== leadToDelete.id));
+        setDeleteModalOpen(false);
+        setLeadToDelete(null);
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -96,7 +168,16 @@ export default function LeadsPage() {
             View and manage your leads pipeline.
           </p>
         </div>
-        <LeadFormModal onLeadCreated={handleLeadCreated} />
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setBulkUploadModalOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Bulk Upload
+          </Button>
+          <Button onClick={() => router.push("/leads/createLead")}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Lead
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -118,9 +199,12 @@ export default function LeadsPage() {
                 <tr>
                   <th className="px-6 py-4">Lead Name</th>
                   <th className="px-6 py-4">Contact</th>
+                  <th className="px-6 py-4">Pipeline Status</th>
                   <th className="px-6 py-4">Location</th>
+                  <th className="px-6 py-4">Call Center</th>
                   <th className="px-6 py-4">Assigned Agent</th>
                   <th className="px-6 py-4">Date Added</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -135,29 +219,67 @@ export default function LeadsPage() {
                         {lead.phone_number}
                       </div>
                     </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        {lead.pipelines ? (
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                {lead.pipelines.name}
+                            </span>
+                        ) : (
+                            <span className="text-xs text-muted-foreground italic">No Pipeline</span>
+                        )}
+                        {lead.stages ? (
+                            <span 
+                                className="inline-block px-2 py-0.5 rounded text-xs font-medium"
+                                style={{ 
+                                  backgroundColor: lead.stages.color_code,
+                                  color: getContrastTextColor(lead.stages.color_code)
+                                }}
+                            >
+                                {lead.stages.name}
+                            </span>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-3 h-3" />
                         {lead.state}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                        <select 
-                            className="bg-transparent border border-border rounded px-2 py-1 text-xs"
-                            value={lead.assigned_agent_id || ""}
-                            onChange={(e) => handleAssignAgent(lead.id, e.target.value)}
-                        >
-                            <option value="">Unassigned</option>
-                            {agents.map(agent => (
-                                <option key={agent.id} value={agent.id}>{agent.full_name}</option>
-                            ))}
-                        </select>
+                    <td className="px-6 py-4 text-muted-foreground">
+                        {lead.call_centers?.name || "-"}
+                    </td>
+                    <td className="px-6 py-4 text-muted-foreground">
+                        {lead.profiles?.full_name || "-"}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-3 h-3" />
                         {format(new Date(lead.created_at), "MMM d, yyyy")}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                            <button 
+                                onClick={() => handleEditClick(lead.id)}
+                                className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                title="Edit Lead"
+                            >
+                                <Pencil className="w-4 h-4" />
+                            </button>
+                            {canDeleteLead(userRole) && (
+                                <button 
+                                    onClick={() => handleDeleteClick(lead)}
+                                    className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                                    title="Delete Lead"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                     </td>
                   </tr>
                 ))}
@@ -166,6 +288,26 @@ export default function LeadsPage() {
           </div>
         </div>
       )}
+      
+      <ConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Lead"
+        description={`Are you sure you want to delete ${leadToDelete?.first_name} ${leadToDelete?.last_name}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        loading={isDeleting}
+      />
+
+      <BulkUploadModal
+        isOpen={bulkUploadModalOpen}
+        onClose={() => setBulkUploadModalOpen(false)}
+        onUploadComplete={() => {
+          fetchData();
+          setBulkUploadModalOpen(false);
+        }}
+      />
     </DashboardLayout>
   );
 }
