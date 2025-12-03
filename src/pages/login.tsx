@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { handleLogin } from "@/handlers/authHandlers";
 import { Input } from "@/components/ui/Input";
@@ -14,6 +14,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -21,7 +27,8 @@ export default function LoginPage() {
     try {
       await handleLogin({ email, password }, router, setLoading, setError);
     } catch (err: any) {
-      toast.error(err.message || "An error occurred during login");
+      const errorMessage = err.message || "An error occurred during login";
+      setError(errorMessage);
     }
   };
 
@@ -106,11 +113,6 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {error && (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
 
               <form className="space-y-5" onSubmit={onSubmit}>
                 <div className="space-y-2">
