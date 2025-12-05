@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "@/lib/supabaseClient";
-import { LogOut, LayoutDashboard, Users, Settings, Phone, FileText, Shield, Kanban, User, ChevronDown } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Settings, Phone, FileText, Shield, Kanban, User, ChevronDown, TrendingUp, FileCheck } from "lucide-react";
 import { FaBell } from "react-icons/fa";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -15,66 +15,83 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { 
-    label: "Dashboard", 
-    href: "/dashboard", 
-    icon: LayoutDashboard, 
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
     roles: getRolesWithAccess("view_own_performance").concat(
       getRolesWithAccess("view_team_performance"),
       getRolesWithAccess("view_center_performance"),
       getRolesWithAccess("view_all_performance")
-    ) 
+    )
   },
-  { 
-    label: "Pipeline", 
-    href: "/pipeline", 
-    icon: Kanban, 
+  {
+    label: "Call Entry",
+    href: "/calls/entry",
+    icon: Phone,
+    roles: ["sales_agent_licensed", "sales_agent_unlicensed", "sales_manager", "call_center_manager", "system_admin"] as UserRole[]
+  },
+  {
+    label: "Stages",
+    href: "/stages",
+    icon: Kanban,
     roles: getRolesWithAccess("access_pipeline_readonly").concat(
       getRolesWithAccess("access_pipeline_full")
-    ) 
+    )
   },
-  { 
-    label: "Leads", 
-    href: "/leads", 
-    icon: FileText, 
+  {
+    label: "Leads",
+    href: "/leads",
+    icon: FileText,
     roles: getRolesWithAccess("view_own_leads").concat(
       getRolesWithAccess("view_assigned_leads"),
       getRolesWithAccess("view_center_leads"),
       getRolesWithAccess("view_all_team_leads"),
       getRolesWithAccess("view_all_leads")
-    ) 
+    )
   },
-  { 
-    label: "Policies", 
-    href: "/policies", 
-    icon: Shield, 
-    roles: getRolesWithAccess("convert_leads_to_customers") 
+  {
+    label: "Policies",
+    href: "/policies",
+    icon: Shield,
+    roles: getRolesWithAccess("convert_leads_to_customers")
   },
-  { 
-    label: "Agents", 
-    href: "/agents", 
-    icon: Users, 
+  {
+    label: "Policy Attachment",
+    href: "/policyAttachment",
+    icon: FileCheck,
+    roles: ["sales_manager", "system_admin"] as UserRole[]
+  },
+  {
+    label: "Daily Deal Flow",
+    href: "/dailyDealFlow",
+    icon: TrendingUp,
+    roles: getRolesWithAccess("generate_reports")
+  },
+  {
+    label: "Agents",
+    href: "/agents",
+    icon: Users,
     roles: getRolesWithAccess("manage_call_center_agents").concat(
       getRolesWithAccess("manage_users")
-    ) 
+    )
   },
-  { 
-    label: "Users", 
-    href: "/users", 
-    icon: Users, 
-    roles: getRolesWithAccess("manage_users") 
+  {
+    label: "Users",
+    href: "/users",
+    icon: Users,
+    roles: getRolesWithAccess("manage_users")
   },
-  { 
-    label: "Call Centers", 
-    href: "/centers", 
-    icon: Phone, 
-    roles: getRolesWithAccess("manage_users") 
+  {
+    label: "Call Centers",
+    href: "/centers",
+    icon: Phone,
+    roles: getRolesWithAccess("manage_users")
   },
-  { 
-    label: "Settings", 
-    href: "/settings", 
-    icon: Settings, 
-    roles: ["system_admin", "call_center_agent"] as UserRole[] 
+  {
+    label: "Settings",
+    href: "/settings",
+    icon: Settings,
   },
 ];
 
@@ -114,7 +131,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (profile) {
         const profileData = profile as any;
         const role = profileData.role || null;
-        
+
         if (role) {
           localStorage.setItem("userRole", role);
           setUserRole(role);
@@ -187,21 +204,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return name[0].toUpperCase();
   };
 
-  // Prevent hydration mismatch by not rendering sidebar content until mounted
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-background flex">
-        <div className="w-64 bg-slate-900 border-r border-slate-800 fixed h-full top-0 left-0 z-30" />
-        <div className="h-16 bg-white border-b border-gray-200 fixed top-0 left-64 right-0 z-20" />
-        <main className="flex-1 ml-64 mt-16 p-8">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar - full height, starts from top, highest z-index */}
@@ -209,9 +211,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <h1 className="text-xl font-bold text-white">CRM System</h1>
         </div>
-        
+
         <nav className="flex-1 p-4 pt-6 space-y-1 overflow-y-auto">
-          {sidebarItems.filter(item => !item.roles || (userRole && isValidRole(userRole) && item.roles.includes(userRole))).map((item) => {
+          {mounted && userRole && isValidRole(userRole) ? (
+            sidebarItems.filter(item => !item.roles || item.roles.includes(userRole)).map((item) => {
             const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + "/");
             return (
               <Link
@@ -228,12 +231,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {item.label}
               </Link>
             );
-          })}
+            })
+          ) : (
+            <div className="space-y-1">
+              {sidebarItems.map((item) => (
+                <div
+                  key={item.href}
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-400"
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span className="opacity-50">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
       </aside>
 
       {/* Header - only on right side, starts where sidebar ends */}
-      <header className="h-16 bg-white border-b border-gray-200 fixed top-0 left-64 right-0 z-20 flex items-center justify-end gap-4 px-6 shadow-sm">
+      <header className="h-16 bg-card border-b border-border fixed top-0 left-64 right-0 z-20 flex items-center justify-end gap-4 px-6 shadow-sm">
         {/* Notification Bell */}
         <div className="relative" ref={notificationRef}>
           <button
@@ -241,25 +257,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               setNotificationDropdownOpen(!notificationDropdownOpen);
               setAvatarDropdownOpen(false);
             }}
-            className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="relative p-2 rounded-lg hover:bg-accent transition-colors"
             aria-label="Notifications"
           >
-            <FaBell className="w-5 h-5 text-gray-600" />
+            <FaBell className="w-5 h-5 text-muted-foreground" />
           </button>
 
           {/* Notification Dropdown */}
           {notificationDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-30">
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+            <div className="absolute right-0 mt-2 w-80 bg-card rounded-lg shadow-lg border border-border z-30">
+              <div className="p-4 border-b border-border">
+                <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
               </div>
               <div className="max-h-96 overflow-y-auto">
                 <div className="p-8 text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-                    <FaBell className="w-6 h-6 text-gray-400" />
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
+                    <FaBell className="w-6 h-6 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-gray-600">No notifications yet</p>
-                  <p className="text-xs text-gray-500 mt-1">You'll see notifications here when they arrive</p>
+                  <p className="text-sm text-muted-foreground">No notifications yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">You'll see notifications here when they arrive</p>
                 </div>
               </div>
             </div>
@@ -273,35 +289,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               setAvatarDropdownOpen(!avatarDropdownOpen);
               setNotificationDropdownOpen(false);
             }}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
           >
             <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium overflow-hidden">
-              {userProfile?.avatar_url ? (
-                <img 
-                  src={userProfile.avatar_url} 
-                  alt={userProfile.full_name || "User"} 
+              {mounted && userProfile?.avatar_url ? (
+                <img
+                  src={userProfile.avatar_url}
+                  alt={userProfile.full_name || "User"}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                getInitials(userProfile?.full_name || null)
+                getInitials(mounted ? userProfile?.full_name || null : null)
               )}
             </div>
-            <ChevronDown className={cn("w-4 h-4 text-gray-600 transition-transform", avatarDropdownOpen && "rotate-180")} />
+            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", avatarDropdownOpen && "rotate-180")} />
           </button>
 
           {/* Dropdown Menu */}
           {avatarDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-30">
+            <div className="absolute right-0 mt-2 w-48 bg-card rounded-lg shadow-lg border border-border py-1 z-30">
               <button
                 onClick={handleProfileClick}
-                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors"
               >
                 <User className="w-4 h-4" />
                 Profile
               </button>
               <button
                 onClick={handleSignOut}
-                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 Sign Out

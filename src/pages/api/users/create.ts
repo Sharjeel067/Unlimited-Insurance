@@ -66,7 +66,7 @@ export default async function handler(
     if (!authUser.user) throw new Error("Failed to create user");
 
     // 2. Update profile (Profile is auto-created by trigger, but we need to update role/metadata)
-    // Wait a moment for trigger or just update (Upsert is safer)
+    const shouldHaveCallCenter = role.includes("call_center");
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .upsert({
@@ -74,7 +74,7 @@ export default async function handler(
         email,
         full_name,
         role,
-        call_center_id: call_center_id || null,
+        call_center_id: shouldHaveCallCenter ? (call_center_id || null) : null,
         manager_id: manager_id || null,
         status: 'active'
       } as any);

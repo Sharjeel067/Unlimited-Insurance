@@ -3,9 +3,16 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { Loader2, Shield, DollarSign, Calendar, Trash2 } from "lucide-react";
+import { Loader2, Shield, DollarSign, Calendar, Trash2, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/Dialog";
+import { toast } from "react-toastify";
+import { Pagination } from "@/components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 interface Policy {
   id: string;
@@ -32,6 +39,18 @@ export default function PoliciesPage() {
   const [policyToDelete, setPolicyToDelete] = useState<Policy | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [policyToEdit, setPolicyToEdit] = useState<Policy | null>(null);
+  const [editForm, setEditForm] = useState({
+    carrier_name: "",
+    policy_number: "",
+    status: "",
+    premium_amount: "",
+    effective_date: "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     const role = localStorage.getItem("userRole");
@@ -40,9 +59,20 @@ export default function PoliciesPage() {
 
   const fetchPolicies = async () => {
     setLoading(true);
+    
+    const { count } = await supabase
+      .from("policies")
+      .select("*", { count: "exact", head: true });
+    
+    setTotalCount(count || 0);
+
+    const from = (currentPage - 1) * ITEMS_PER_PAGE;
+    const to = from + ITEMS_PER_PAGE - 1;
+
     const { data, error } = await supabase
       .from("policies")
       .select("*, leads(first_name, last_name)")
+      .range(from, to)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -55,7 +85,61 @@ export default function PoliciesPage() {
 
   useEffect(() => {
     fetchPolicies();
-  }, []);
+  }, [currentPage]);
+
+  const handleEditClick = (policy: Policy) => {
+    setPolicyToEdit(policy);
+    setEditForm({
+      carrier_name: policy.carrier_name || "",
+      policy_number: policy.policy_number || "",
+      status: policy.status || "",
+      premium_amount: policy.premium_amount?.toString() || "",
+      effective_date: policy.effective_date || "",
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!policyToEdit) return;
+
+    if (!editForm.carrier_name || !editForm.policy_number || !editForm.status || !editForm.premium_amount) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const updatePayload = {
+        carrier_name: editForm.carrier_name.trim(),
+        policy_number: editForm.policy_number.trim(),
+        status: editForm.status.toLowerCase(),
+        premium_amount: parseFloat(editForm.premium_amount),
+        effective_date: editForm.effective_date || null,
+      };
+
+      const { data, error } = await (supabase
+        .from("policies") as any)
+        .update(updatePayload)
+        .eq("id", policyToEdit.id)
+        .select();
+
+      if (error) {
+        console.error("Supabase error:", error);
+        throw new Error(error.message || "Failed to update policy");
+      }
+
+      toast.success("Policy updated successfully!");
+      await fetchPolicies();
+      
+      setEditModalOpen(false);
+      setPolicyToEdit(null);
+    } catch (err: any) {
+      console.error("Error updating policy:", err);
+      toast.error(err.message || "Failed to update policy. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDeleteClick = (policy: Policy) => {
     setPolicyToDelete(policy);
@@ -74,14 +158,16 @@ export default function PoliciesPage() {
 
       if (error) {
         console.error("Error deleting policy:", error);
-        alert("Failed to delete policy. You might not have permission.");
+        toast.error("Failed to delete policy. You might not have permission.");
       } else {
+        toast.success("Policy deleted successfully!");
         setPolicies(policies.filter(p => p.id !== policyToDelete.id));
         setDeleteModalOpen(false);
         setPolicyToDelete(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Unexpected error:", err);
+      toast.error(err.message || "An unexpected error occurred");
     } finally {
       setIsDeleting(false);
     }
@@ -153,19 +239,35 @@ export default function PoliciesPage() {
                   </td>
                   {userRole === 'system_admin' && (
                     <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button 
-                            onClick={() => handleDeleteClick(policy)}
-                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                            title="Delete Policy"
+                          onClick={() => handleEditClick(policy)}
+                          className="text-muted-foreground hover:text-primary transition-colors p-1"
+                          title="Edit Policy"
                         >
-                            <Trash2 className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
+                        <button 
+                          onClick={() => handleDeleteClick(policy)}
+                          className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                          title="Delete Policy"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(totalCount / ITEMS_PER_PAGE)}
+            onPageChange={setCurrentPage}
+            totalItems={totalCount}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
         </div>
       )}
       
@@ -179,6 +281,101 @@ export default function PoliciesPage() {
         variant="destructive"
         loading={isDeleting}
       />
+
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Policy</DialogTitle>
+            <DialogDescription>
+              Update policy information for {policyToEdit?.policy_number}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Carrier Name
+                </label>
+                <Input
+                  value={editForm.carrier_name}
+                  onChange={(e) => setEditForm({ ...editForm, carrier_name: e.target.value })}
+                  placeholder="Enter carrier name"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Policy Number
+                </label>
+                <Input
+                  value={editForm.policy_number}
+                  onChange={(e) => setEditForm({ ...editForm, policy_number: e.target.value })}
+                  placeholder="Enter policy number"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Status
+                </label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select status</option>
+                  <option value="active">Active</option>
+                  <option value="pending">Pending</option>
+                  <option value="lapsed">Lapsed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Premium Amount
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editForm.premium_amount}
+                  onChange={(e) => setEditForm({ ...editForm, premium_amount: e.target.value })}
+                  placeholder="Enter premium amount"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">
+                  Effective Date
+                </label>
+                <Input
+                  type="date"
+                  value={editForm.effective_date}
+                  onChange={(e) => setEditForm({ ...editForm, effective_date: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setEditModalOpen(false)}
+                disabled={isSaving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+              >
+                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

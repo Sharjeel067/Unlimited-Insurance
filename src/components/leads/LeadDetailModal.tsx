@@ -13,6 +13,7 @@ import { getContrastTextColor } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "react-toastify";
+import { isValidRole, type UserRole } from "@/lib/permissions";
 
 interface LeadDetailModalProps {
   lead: any;
@@ -35,6 +36,14 @@ export function LeadDetailModal({ lead, isOpen, onClose, onLeadUpdated }: LeadDe
   const [formData, setFormData] = useState<any>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [pipelineStages, setPipelineStages] = useState<Stage[]>([]);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+
+  useEffect(() => {
+    const savedRole = localStorage.getItem("userRole");
+    if (savedRole && isValidRole(savedRole)) {
+      setUserRole(savedRole);
+    }
+  }, []);
 
   useEffect(() => {
     if (lead) {
@@ -239,7 +248,7 @@ export function LeadDetailModal({ lead, isOpen, onClose, onLeadUpdated }: LeadDe
             Complete information for {lead.first_name} {lead.last_name}
           </DialogDescription>
             </div>
-            {!isEditing && (
+            {!isEditing && userRole !== "call_center_agent" && (
               <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit Lead

@@ -13,6 +13,7 @@ interface Agent {
   email: string;
   role: string;
   status: string;
+  call_center_id: string | null;
   call_centers?: { name: string; location: string };
 }
 
@@ -36,19 +37,42 @@ export default function AgentsPage() {
   const [agentToEdit, setAgentToEdit] = useState<Agent | null>(null);
   
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userCallCenterId, setUserCallCenterId] = useState<string | null>(null);
 
   useEffect(() => {
-    const role = localStorage.getItem("userRole");
-    setUserRole(role);
+    const fetchUserInfo = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role, call_center_id")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (profile) {
+          setUserRole((profile as any).role);
+          setUserCallCenterId((profile as any).call_center_id);
+        }
+      }
+    };
+    fetchUserInfo();
   }, []);
 
   const fetchAgents = async () => {
+    if (userRole === null) return;
+    
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("profiles")
       .select("*, call_centers(name, location)")
       .in("role", ["sales_agent_licensed", "sales_agent_unlicensed", "call_center_agent"])
       .order("created_at", { ascending: false });
+
+    if (userRole === "call_center_manager" && userCallCenterId) {
+      query = query.eq("call_center_id", userCallCenterId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching agents:", error);
@@ -59,8 +83,10 @@ export default function AgentsPage() {
   };
 
   useEffect(() => {
+    if (userRole !== null) {
     fetchAgents();
-  }, []);
+    }
+  }, [userRole, userCallCenterId]);
 
   const handleDeleteClick = (agent: Agent) => {
     setAgentToDelete(agent);
@@ -68,12 +94,31 @@ export default function AgentsPage() {
   };
 
   const handleEditClick = (agent: Agent) => {
+    if (!canEditOrDeleteAgent(agent)) {
+      alert("You don't have permission to edit this agent.");
+      return;
+    }
     setAgentToEdit(agent);
     setEditModalOpen(true);
   };
 
+  const canEditOrDeleteAgent = (agent: Agent): boolean => {
+    if (userRole === "system_admin") {
+      return true;
+    }
+    if (userRole === "call_center_manager" && userCallCenterId) {
+      return agent.call_center_id === userCallCenterId;
+    }
+    return false;
+  };
+
   const confirmDelete = async () => {
     if (!agentToDelete) return;
+    
+    if (!canEditOrDeleteAgent(agentToDelete)) {
+      alert("You don't have permission to delete this agent.");
+      return;
+    }
     
     setIsDeleting(true);
     try {
@@ -150,7 +195,7 @@ export default function AgentsPage() {
                     )}>
                         {roleLabels[agent.role] || "Agent"}
                     </span>
-                    {userRole === 'system_admin' && (
+                    {canEditOrDeleteAgent(agent) && (
                         <div className="flex items-center gap-1">
                             <button 
                                 onClick={() => handleEditClick(agent)}
@@ -172,15 +217,25 @@ export default function AgentsPage() {
               </div>
 
               <div className="flex-1 space-y-3 mt-2">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Briefcase className="w-4 h-4 mr-2 opacity-70" />
-                  {agent.call_centers?.name || "No Center Assigned"}
-                </div>
-                {agent.call_centers?.location && (
+                {agent.role.includes("call_center") && (
+                  <>
                     <div className="flex items-center text-sm text-muted-foreground">
-                    <MapPin className="w-4 h-4 mr-2 opacity-70" />
-                    {agent.call_centers.location}
+                      <Briefcase className="w-4 h-4 mr-2 opacity-70" />
+                      {agent.call_centers?.name || "No Center Assigned"}
                     </div>
+                    {agent.call_centers?.location && (
+                        <div className="flex items-center text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4 mr-2 opacity-70" />
+                        {agent.call_centers.location}
+                        </div>
+                    )}
+                  </>
+                )}
+                {!agent.role.includes("call_center") && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Briefcase className="w-4 h-4 mr-2 opacity-70" />
+                    Agency User (No Call Center)
+                  </div>
                 )}
               </div>
 

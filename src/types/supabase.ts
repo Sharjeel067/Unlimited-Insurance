@@ -309,6 +309,21 @@ export interface Database {
           effective_date: string | null
           created_at: string
           updated_at: string
+          policy_holder_name: string | null
+          ghl_name: string | null
+          stage_id: string | null
+          creation_date: string | null
+          deal_value: number | null
+          cc_value: number | null
+          sales_agent_id: string | null
+          writing_number: string | null
+          commission_type: string | null
+          call_center_of_lead: string | null
+          phone_no_of_lead: string | null
+          ccpmtws: string | null
+          cccbws: string | null
+          carrier_status: string | null
+          deal_creation_date: string | null
         }
         Insert: {
           id?: string
@@ -322,6 +337,21 @@ export interface Database {
           effective_date?: string | null
           created_at?: string
           updated_at?: string
+          policy_holder_name?: string | null
+          ghl_name?: string | null
+          stage_id?: string | null
+          creation_date?: string | null
+          deal_value?: number | null
+          cc_value?: number | null
+          sales_agent_id?: string | null
+          writing_number?: string | null
+          commission_type?: string | null
+          call_center_of_lead?: string | null
+          phone_no_of_lead?: string | null
+          ccpmtws?: string | null
+          cccbws?: string | null
+          carrier_status?: string | null
+          deal_creation_date?: string | null
         }
         Update: {
           id?: string
@@ -335,6 +365,220 @@ export interface Database {
           effective_date?: string | null
           created_at?: string
           updated_at?: string
+          policy_holder_name?: string | null
+          ghl_name?: string | null
+          stage_id?: string | null
+          creation_date?: string | null
+          deal_value?: number | null
+          cc_value?: number | null
+          sales_agent_id?: string | null
+          writing_number?: string | null
+          commission_type?: string | null
+          call_center_of_lead?: string | null
+          phone_no_of_lead?: string | null
+          ccpmtws?: string | null
+          cccbws?: string | null
+          carrier_status?: string | null
+          deal_creation_date?: string | null
+        }
+      }
+      call_results: {
+        Row: {
+          id: string
+          lead_id: string | null
+          submission_id: string | null
+          application_submitted: boolean | null
+          status: string | null
+          notes: string | null
+          carrier: string | null
+          product_type: string | null
+          draft_date: string | null
+          submitting_agent: string | null
+          licensed_agent_account: string | null
+          coverage_amount: number | null
+          monthly_premium: number | null
+          face_amount: number | null
+          submission_date: string | null
+          agent_id: string | null
+          user_id: string | null
+          created_at: string | null
+          updated_at: string | null
+          buffer_agent: string | null
+          agent_who_took_call: string | null
+          sent_to_underwriting: boolean | null
+          call_source: string | null
+          dq_reason: string | null
+          new_draft_date: string | null
+          is_callback: boolean | null
+          is_retention_call: boolean | null
+          carrier_attempted_1: string | null
+          carrier_attempted_2: string | null
+          carrier_attempted_3: string | null
+        }
+        Insert: {
+          id?: string
+          lead_id?: string | null
+          submission_id?: string | null
+          application_submitted?: boolean | null
+          status?: string | null
+          notes?: string | null
+          carrier?: string | null
+          product_type?: string | null
+          draft_date?: string | null
+          submitting_agent?: string | null
+          licensed_agent_account?: string | null
+          coverage_amount?: number | null
+          monthly_premium?: number | null
+          face_amount?: number | null
+          submission_date?: string | null
+          agent_id?: string | null
+          user_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          buffer_agent?: string | null
+          agent_who_took_call?: string | null
+          sent_to_underwriting?: boolean | null
+          call_source?: string | null
+          dq_reason?: string | null
+          new_draft_date?: string | null
+          is_callback?: boolean | null
+          is_retention_call?: boolean | null
+          carrier_attempted_1?: string | null
+          carrier_attempted_2?: string | null
+          carrier_attempted_3?: string | null
+        }
+        Update: {
+          id?: string
+          lead_id?: string | null
+          submission_id?: string | null
+          application_submitted?: boolean | null
+          status?: string | null
+          notes?: string | null
+          carrier?: string | null
+          product_type?: string | null
+          draft_date?: string | null
+          submitting_agent?: string | null
+          licensed_agent_account?: string | null
+          coverage_amount?: number | null
+          monthly_premium?: number | null
+          face_amount?: number | null
+          submission_date?: string | null
+          agent_id?: string | null
+          user_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          buffer_agent?: string | null
+          agent_who_took_call?: string | null
+          sent_to_underwriting?: boolean | null
+          call_source?: string | null
+          dq_reason?: string | null
+          new_draft_date?: string | null
+          is_callback?: boolean | null
+          is_retention_call?: boolean | null
+          carrier_attempted_1?: string | null
+          carrier_attempted_2?: string | null
+          carrier_attempted_3?: string | null
+        }
+      }
+      daily_deal_flow: {
+        Row: {
+          id: string
+          submission_id: string
+          client_phone_number: string | null
+          lead_vendor: string | null
+          date: string | null
+          insured_name: string | null
+          buffer_agent: string | null
+          agent: string | null
+          licensed_agent_account: string | null
+          status: string | null
+          call_result: string | null
+          carrier: string | null
+          product_type: string | null
+          draft_date: string | null
+          monthly_premium: number | null
+          face_amount: number | null
+          from_callback: boolean | null
+          notes: string | null
+          policy_number: string | null
+          carrier_audit: string | null
+          product_type_carrier: string | null
+          level_or_gi: string | null
+          created_at: string | null
+          updated_at: string | null
+          is_callback: boolean | null
+          is_retention_call: boolean | null
+          placement_status: string | null
+          ghl_location_id: string | null
+          ghl_opportunity_id: string | null
+          ghlcontactid: string | null
+          sync_status: string | null
+        }
+        Insert: {
+          id?: string
+          submission_id: string
+          client_phone_number?: string | null
+          lead_vendor?: string | null
+          date?: string | null
+          insured_name?: string | null
+          buffer_agent?: string | null
+          agent?: string | null
+          licensed_agent_account?: string | null
+          status?: string | null
+          call_result?: string | null
+          carrier?: string | null
+          product_type?: string | null
+          draft_date?: string | null
+          monthly_premium?: number | null
+          face_amount?: number | null
+          from_callback?: boolean | null
+          notes?: string | null
+          policy_number?: string | null
+          carrier_audit?: string | null
+          product_type_carrier?: string | null
+          level_or_gi?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          is_callback?: boolean | null
+          is_retention_call?: boolean | null
+          placement_status?: string | null
+          ghl_location_id?: string | null
+          ghl_opportunity_id?: string | null
+          ghlcontactid?: string | null
+          sync_status?: string | null
+        }
+        Update: {
+          id?: string
+          submission_id?: string
+          client_phone_number?: string | null
+          lead_vendor?: string | null
+          date?: string | null
+          insured_name?: string | null
+          buffer_agent?: string | null
+          agent?: string | null
+          licensed_agent_account?: string | null
+          status?: string | null
+          call_result?: string | null
+          carrier?: string | null
+          product_type?: string | null
+          draft_date?: string | null
+          monthly_premium?: number | null
+          face_amount?: number | null
+          from_callback?: boolean | null
+          notes?: string | null
+          policy_number?: string | null
+          carrier_audit?: string | null
+          product_type_carrier?: string | null
+          level_or_gi?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          is_callback?: boolean | null
+          is_retention_call?: boolean | null
+          placement_status?: string | null
+          ghl_location_id?: string | null
+          ghl_opportunity_id?: string | null
+          ghlcontactid?: string | null
+          sync_status?: string | null
         }
       }
     }

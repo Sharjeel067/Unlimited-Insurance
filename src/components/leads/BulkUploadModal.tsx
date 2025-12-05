@@ -157,6 +157,7 @@ export function BulkUploadModal({ isOpen, onClose, onUploadComplete }: BulkUploa
     }
 
     const validLeads: any[] = [];
+    const seenSSNs = new Map<string, Set<string>>();
 
     for (let i = 0; i < leads.length; i++) {
       const row = leads[i];
@@ -169,13 +170,49 @@ export function BulkUploadModal({ isOpen, onClose, onUploadComplete }: BulkUploa
         if (validationResult.success) {
           const { beneficiary_name, beneficiary_relation, call_center_id, assigned_agent_id, ...dbData } = validationResult.data;
           
+          const finalCallCenterId = call_center_id && call_center_id !== "" ? call_center_id : null;
+          const ssn = dbData.ssn;
+
+          if (ssn && finalCallCenterId) {
+            if (seenSSNs.has(ssn) && seenSSNs.get(ssn)!.has(finalCallCenterId)) {
+              results.failed++;
+              results.errors.push(`Row ${i + 1}: A lead with this SSN already exists in this call center within the upload file.`);
+              continue;
+            }
+
+            const { data: existingLead, error: checkError } = await supabase
+              .from("leads")
+              .select("id")
+              .eq("ssn", ssn)
+              .eq("call_center_id", finalCallCenterId)
+              .limit(1)
+              .single();
+
+            if (checkError && checkError.code !== "PGRST116") {
+              results.failed++;
+              results.errors.push(`Row ${i + 1}: Failed to check for duplicate leads: ${checkError.message}`);
+              continue;
+            }
+
+            if (existingLead) {
+              results.failed++;
+              results.errors.push(`Row ${i + 1}: A lead with this SSN already exists in this call center. Duplicate leads cannot be added.`);
+              continue;
+            }
+
+            if (!seenSSNs.has(ssn)) {
+              seenSSNs.set(ssn, new Set());
+            }
+            seenSSNs.get(ssn)!.add(finalCallCenterId);
+          }
+          
           validLeads.push({
             ...dbData,
             beneficiary_info: {
               name: beneficiary_name || '',
               relation: beneficiary_relation || ''
             },
-            call_center_id: call_center_id && call_center_id !== "" ? call_center_id : null,
+            call_center_id: finalCallCenterId,
             assigned_agent_id: assigned_agent_id && assigned_agent_id !== "" ? assigned_agent_id : null,
             submission_id: `SUB-${Date.now()}-${i}`,
             pipeline_id: (firstPipeline as any).id,

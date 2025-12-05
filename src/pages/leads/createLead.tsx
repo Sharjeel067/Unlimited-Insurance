@@ -10,7 +10,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "react-toastify";
 import { Loader2, ArrowLeft, Save } from "lucide-react";
 import { useRouter } from "next/router";
-import { canEditLead, canSeeAssignmentSection, isValidRole, type UserRole } from "@/lib/permissions";
+import { canEditLead, canSeeAssignmentSection, canCreateLead, isValidRole, type UserRole } from "@/lib/permissions";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 export default function CreateLeadPage() {
   const router = useRouter();
@@ -20,6 +21,9 @@ export default function CreateLeadPage() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userCallCenterId, setUserCallCenterId] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<"back" | "cancel" | null>(null);
+  const [initialFormValues, setInitialFormValues] = useState<Partial<LeadFormData> | null>(null);
   
   // Dropdown data
   const [callCenters, setCallCenters] = useState<{id: string, name: string}[]>([]);
@@ -28,7 +32,7 @@ export default function CreateLeadPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
     watch,
     setValue,
@@ -40,13 +44,64 @@ export default function CreateLeadPage() {
     },
   });
 
+  const formValues = watch();
+
+  const normalizeValue = (value: any): any => {
+    if (value === null || value === undefined || value === "") return "";
+    if (typeof value === "number") return value;
+    if (typeof value === "boolean") return value;
+    return String(value).trim();
+  };
+
+  const isFormDirty = () => {
+    if (!initialFormValues) return isDirty;
+    
+    const current = getValues();
+    const initial = initialFormValues;
+    
+    const fieldsToCheck: (keyof LeadFormData)[] = [
+      "first_name", "last_name", "date_of_birth", "ssn", "phone_number", "email",
+      "address", "city", "state", "zip_code", "height", "weight", "tobacco_use",
+      "health_conditions", "medications", "desired_coverage", "monthly_budget",
+      "existing_coverage", "beneficiary_name", "beneficiary_relation",
+      "bank_name", "routing_number", "account_number", "call_center_id", "assigned_agent_id"
+    ];
+    
+    for (const field of fieldsToCheck) {
+      const currentValue = normalizeValue(current[field]);
+      const initialValue = normalizeValue(initial[field]);
+      
+      if (currentValue !== initialValue) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   const selectedCallCenterId = watch("call_center_id");
 
   useEffect(() => {
     const initializeData = async () => {
-      // Fetch call centers first
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+        
+        if (profile) {
+          const role = (profile as any).role;
+          if (isValidRole(role) && !canCreateLead(role)) {
+            toast.error("You don't have permission to create leads. Only call center agents can create leads.");
+            router.push("/leads");
+            return;
+          }
+        }
+      }
+      
       await fetchDropdownData();
-      // Then check user (which will use the call centers list)
       await checkUser();
     };
     initializeData();
@@ -86,10 +141,9 @@ export default function CreateLeadPage() {
         }
         setUserCallCenterId(profileData.call_center_id);
         
-        // Auto-set call center and assigned agent for call_center_agent
+        // Only call center agents have call centers, sales agents don't
         if (isValidRole(role) && role === "call_center_agent") {
           if (profileData.call_center_id) {
-            // Fetch call center name to ensure it's in the dropdown options
             const { data: callCenterData } = await supabase
               .from("call_centers")
               .select("id, name")
@@ -107,11 +161,10 @@ export default function CreateLeadPage() {
               });
             }
             
-            // Fetch agents for the call center directly
             const { data: agentData, error: agentError } = await (supabase
               .from("profiles") as any)
               .select("id, full_name, call_center_id")
-              .in("role", ["call_center_agent", "sales_agent_licensed", "sales_agent_unlicensed"])
+              .in("role", ["call_center_agent", "call_center_manager"])
               .eq("call_center_id", profileData.call_center_id);
             
             if (agentError) {
@@ -129,16 +182,21 @@ export default function CreateLeadPage() {
               }];
             }
             
-            // Set the agents list
             setAgents(finalAgentsList);
             
-            // Wait a moment for state to update
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            // Then set the values so the dropdowns show the selected options
             setValue("call_center_id", profileData.call_center_id, { shouldValidate: true });
-            // Set the agent as themselves
             setValue("assigned_agent_id", session.user.id, { shouldValidate: true });
+            
+            setTimeout(() => {
+              const currentValues = getValues();
+              setInitialFormValues({ ...currentValues });
+            }, 200);
+          }
+        } else if (isValidRole(role) && canSeeAssignmentSection(role)) {
+          if (!leadId) {
+            await fetchSalesAgents();
           }
         }
       }
@@ -155,12 +213,23 @@ export default function CreateLeadPage() {
   }, [leadId, userId, userRole]);
 
   useEffect(() => {
-    if (selectedCallCenterId && userRole !== "call_center_agent") {
+    // Only fetch agents if user can see assignment section and role is set
+    if (!userRole || !canSeeAssignmentSection(userRole)) return;
+    
+    if (userRole === "call_center_agent") {
+      return;
+    }
+
+    // If call center is selected, fetch call center agents
+    // If no call center is selected, fetch sales agents
+    if (selectedCallCenterId) {
       fetchAgentsForCallCenter(selectedCallCenterId);
+    } else {
+      // Fetch sales agents when no call center is selected
+      fetchSalesAgents();
     }
   }, [selectedCallCenterId, userRole]);
 
-  // Auto-set assigned agent for call_center_agent when agents list is populated
   useEffect(() => {
     if (userRole === "call_center_agent" && userId && agents.length > 0 && !leadId) {
       const userInList = agents.find(a => a.id === userId);
@@ -172,6 +241,87 @@ export default function CreateLeadPage() {
       }
     }
   }, [agents, userId, userRole, leadId]);
+
+  useEffect(() => {
+    const currentValues = getValues();
+    if (!initialFormValues) {
+      const defaultInitialValues: Partial<LeadFormData> = {
+        first_name: "",
+        last_name: "",
+        date_of_birth: "",
+        ssn: "",
+        phone_number: "",
+        email: "",
+        address: "",
+        city: "",
+        state: "",
+        zip_code: "",
+        height: "",
+        weight: "",
+        tobacco_use: false,
+        health_conditions: "",
+        medications: "",
+        desired_coverage: 0,
+        monthly_budget: 0,
+        existing_coverage: "",
+        bank_name: "",
+        routing_number: "",
+        account_number: "",
+        beneficiary_name: "",
+        beneficiary_relation: "",
+        call_center_id: "",
+        assigned_agent_id: "",
+      };
+      setInitialFormValues(defaultInitialValues);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isFormDirty()) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [formValues, initialFormValues]);
+
+  const handleCancel = () => {
+    if (isFormDirty()) {
+      setPendingNavigation("cancel");
+      setShowConfirmModal(true);
+    } else {
+      router.push("/leads");
+    }
+  };
+
+  const handleBack = () => {
+    if (isFormDirty()) {
+      setPendingNavigation("back");
+      setShowConfirmModal(true);
+    } else {
+      router.back();
+    }
+  };
+
+  const handleConfirmNavigation = () => {
+    setShowConfirmModal(false);
+    if (pendingNavigation === "cancel") {
+      router.push("/leads");
+    } else if (pendingNavigation === "back") {
+      router.back();
+    }
+    setPendingNavigation(null);
+  };
+
+  const handleCancelNavigation = () => {
+    setShowConfirmModal(false);
+    setPendingNavigation(null);
+  };
   
   const fetchDropdownData = async () => {
     const { data: centers } = await supabase.from("call_centers").select("id, name");
@@ -179,10 +329,16 @@ export default function CreateLeadPage() {
   };
 
   const fetchAgentsForCallCenter = async (callCenterId: string) => {
+    if (!callCenterId) {
+      // If no call center selected, fetch sales agents
+      await fetchSalesAgents();
+      return;
+    }
+
     const { data: agentData, error } = await (supabase
       .from("profiles") as any)
       .select("id, full_name, call_center_id")
-      .in("role", ["call_center_agent", "sales_agent_licensed", "sales_agent_unlicensed"])
+      .in("role", ["call_center_agent", "call_center_manager"])
       .eq("call_center_id", callCenterId);
     
     if (error) {
@@ -198,6 +354,42 @@ export default function CreateLeadPage() {
           setValue("assigned_agent_id", "");
         }
       }
+    }
+  };
+
+  const fetchSalesAgents = async () => {
+    try {
+      const { data: agentData, error } = await (supabase
+        .from("profiles") as any)
+        .select("id, full_name, call_center_id")
+        .in("role", ["sales_agent_licensed", "sales_agent_unlicensed", "sales_manager"])
+        .order("full_name", { ascending: true });
+      
+      if (error) {
+        console.error("Error fetching sales agents:", error);
+        toast.error("Failed to load sales agents: " + error.message);
+        setAgents([]);
+        return;
+      }
+      
+      const agentsList = agentData as any[] || [];
+      setAgents(agentsList);
+      
+      if (agentsList.length === 0) {
+        console.warn("No sales agents found in database");
+      }
+      
+      const currentAgentId = getValues("assigned_agent_id");
+      if (currentAgentId) {
+        const currentAgent = agentsList.find((a: any) => a.id === currentAgentId);
+        if (!currentAgent) {
+          setValue("assigned_agent_id", "");
+        }
+      }
+    } catch (err: any) {
+      console.error("Unexpected error fetching sales agents:", err);
+      toast.error("Failed to load sales agents");
+      setAgents([]);
     }
   };
 
@@ -224,7 +416,7 @@ export default function CreateLeadPage() {
     }
 
     if (data) {
-      // For call_center_agent, override with their own call center and agent
+      // For call_center_agent and sales agents, override with their own call center and agent
       let callCenterId = (data as any).call_center_id || "";
       let assignedAgentId = (data as any).assigned_agent_id || "";
       
@@ -262,13 +454,14 @@ export default function CreateLeadPage() {
         assigned_agent_id: assignedAgentId,
       };
       reset(formData);
+      setInitialFormValues({ ...formData });
       
-      // Fetch agents for the call center (use user's call center if call_center_agent)
       const centerIdToFetch = userRole === "call_center_agent" && userCallCenterId ? userCallCenterId : (data as any).call_center_id;
       if (centerIdToFetch) {
         await fetchAgentsForCallCenter(centerIdToFetch);
       } else {
-        setAgents([]);
+        // If no call center, fetch sales agents
+        await fetchSalesAgents();
       }
     }
     setFetching(false);
@@ -279,6 +472,42 @@ export default function CreateLeadPage() {
     setLoading(true);
     try {
       const { beneficiary_name, beneficiary_relation, call_center_id, assigned_agent_id, ...dbData } = data;
+    
+      const hasCallCenter = call_center_id && call_center_id !== "";
+      const hasAssignedAgent = assigned_agent_id && assigned_agent_id !== "";
+      
+      if (!hasCallCenter && !hasAssignedAgent) {
+        // If no agent is selected, try to fetch agents one more time in case they weren't loaded
+        if (agents.length === 0) {
+          // Fetch agents and wait for the result
+          const { data: agentData, error: fetchError } = await (supabase
+            .from("profiles") as any)
+            .select("id, full_name, call_center_id")
+            .in("role", ["sales_agent_licensed", "sales_agent_unlicensed", "sales_manager"])
+            .order("full_name", { ascending: true });
+          
+          if (fetchError) {
+            toast.error("Failed to load sales agents. Please try again or contact your administrator.");
+            setLoading(false);
+            return;
+          }
+          
+          const fetchedAgents = agentData as any[] || [];
+          if (fetchedAgents.length === 0) {
+            toast.error("No sales agents available. Please contact your administrator to create sales agent accounts.");
+            setLoading(false);
+            return;
+          }
+          
+          // Update agents state
+          setAgents(fetchedAgents);
+        }
+        
+        // Show error to select an agent
+        toast.error("Please select an assigned agent from the dropdown. Agency leads (without call center) require an assigned sales agent.");
+        setLoading(false);
+        return;
+      }
       
       const commonData = {
         ...dbData,
@@ -324,6 +553,32 @@ export default function CreateLeadPage() {
           commonData.assigned_agent_id = userId;
         }
         
+        if (!canCreateLead(userRole)) {
+          toast.error("You don't have permission to create leads. Only call center agents can create leads.");
+          setLoading(false);
+          return;
+        }
+
+        if (commonData.ssn && commonData.call_center_id) {
+          const { data: existingLead, error: checkError } = await supabase
+            .from("leads")
+            .select("id, first_name, last_name")
+            .eq("ssn", commonData.ssn)
+            .eq("call_center_id", commonData.call_center_id)
+            .limit(1)
+            .single();
+
+          if (checkError && checkError.code !== "PGRST116") {
+            throw new Error("Failed to check for duplicate leads: " + checkError.message);
+          }
+
+          if (existingLead) {
+            toast.error("A lead with this SSN already exists in this call center. Duplicate leads cannot be added.");
+            setLoading(false);
+            return;
+          }
+        }
+        
         const { data: firstPipeline, error: pipelineError } = await supabase
           .from("pipelines")
           .select("id")
@@ -356,6 +611,35 @@ export default function CreateLeadPage() {
         toast.success("Lead created successfully");
       }
 
+      const defaultInitialValues: Partial<LeadFormData> = {
+        first_name: "",
+        last_name: "",
+        date_of_birth: "",
+        ssn: "",
+        phone_number: "",
+        email: "",
+        address: "",
+        city: "",
+        state: "",
+        zip_code: "",
+        height: "",
+        weight: "",
+        tobacco_use: false,
+        health_conditions: "",
+        medications: "",
+        desired_coverage: 0,
+        monthly_budget: 0,
+        existing_coverage: "",
+        bank_name: "",
+        routing_number: "",
+        account_number: "",
+        beneficiary_name: "",
+        beneficiary_relation: "",
+        call_center_id: "",
+        assigned_agent_id: "",
+      };
+      reset(defaultInitialValues);
+      setInitialFormValues(defaultInitialValues);
       router.push("/leads");
     } catch (error: any) {
       console.error("Error saving lead:", error);
@@ -384,7 +668,7 @@ export default function CreateLeadPage() {
 
       <div className="max-w-6xl mx-auto pb-10">
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => router.back()} className="p-2">
+          <Button variant="ghost" onClick={handleBack} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -405,34 +689,52 @@ export default function CreateLeadPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Call Center</label>
+                  <label className="text-sm font-medium text-foreground">Call Center (Optional)</label>
                   <select
-                  className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${!canSeeAssignmentSection(userRole) ? "opacity-60 cursor-not-allowed" : ""}`}
+                  className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${!canSeeAssignmentSection(userRole) || userRole === "sales_agent_licensed" || userRole === "sales_agent_unlicensed" ? "opacity-60 cursor-not-allowed" : ""}`}
                   {...register("call_center_id")}
-                  disabled={!canSeeAssignmentSection(userRole)}
+                  disabled={!canSeeAssignmentSection(userRole) || userRole === "sales_agent_licensed" || userRole === "sales_agent_unlicensed"}
                   >
-                    <option value="">Select Call Center...</option>
+                    <option value="">No Call Center (Agency Lead)</option>
                     {callCenters.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedCallCenterId 
+                      ? "Select an agent from this call center" 
+                      : "Select a sales agent to assign this lead"}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Assigned Agent</label>
+                  <label className="text-sm font-medium text-foreground">Assigned Agent {!selectedCallCenterId && "(Required)"}</label>
                   <select
                   className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${!canSeeAssignmentSection(userRole) ? "opacity-60 cursor-not-allowed" : ""}`}
                   {...register("assigned_agent_id")}
-                  disabled={!canSeeAssignmentSection(userRole) || (canSeeAssignmentSection(userRole) && !selectedCallCenterId)}
+                  disabled={!canSeeAssignmentSection(userRole)}
                   >
-                    <option value="">{selectedCallCenterId ? "Select Agent..." : "Select Call Center first"}</option>
+                    <option value="">
+                      {selectedCallCenterId 
+                        ? "Select Call Center Agent..." 
+                        : "Select Sales Agent..."}
+                    </option>
                     {agents.length > 0 ? (
                       agents.map(a => (
                         <option key={a.id} value={a.id}>{a.full_name}</option>
                       ))
                     ) : (
-                      <option value="" disabled>No agents available</option>
+                      <option value="" disabled>
+                        {selectedCallCenterId 
+                          ? "No call center agents available" 
+                          : "No sales agents available"}
+                      </option>
                     )}
                   </select>
+                  {!selectedCallCenterId && (
+                    <p className="text-xs text-muted-foreground">
+                      This lead will be assigned to a sales agent (agency lead)
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -606,7 +908,7 @@ export default function CreateLeadPage() {
           </div>
 
           <div className="flex items-center justify-end gap-4 pt-4">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="min-w-[150px]">
@@ -625,6 +927,17 @@ export default function CreateLeadPage() {
           </div>
 
         </form>
+
+        <ConfirmationModal
+          isOpen={showConfirmModal}
+          onClose={handleCancelNavigation}
+          onConfirm={handleConfirmNavigation}
+          title="Unsaved Changes"
+          description="You have unsaved changes. Are you sure you want to leave? All your progress will be lost."
+          confirmText="Leave"
+          cancelText="Stay"
+          variant="destructive"
+        />
       </div>
     </DashboardLayout>
   );

@@ -70,33 +70,32 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     role: "sales_agent_licensed",
     accessLevel: "Medium",
     permissions: [
-      "view_assigned_leads",
+      "view_all_leads",
       "update_lead_status",
       "update_pipeline_stage",
+      "access_pipeline_full",
       "add_notes",
       "add_call_recordings",
       "make_outbound_calls",
       "convert_leads_to_customers",
       "close_deals",
       "view_own_performance",
-      "edit_assigned_leads",
     ],
   },
   sales_agent_unlicensed: {
     role: "sales_agent_unlicensed",
     accessLevel: "Limited Sales",
     permissions: [
-      "view_assigned_leads",
+      "view_all_leads",
       "add_notes",
       "update_lead_status",
-      "edit_assigned_leads",
     ],
   },
   sales_manager: {
     role: "sales_manager",
     accessLevel: "High",
     permissions: [
-      "view_all_team_leads",
+      "view_all_leads",
       "assign_leads",
       "reassign_leads",
       "manage_pipeline_stages",
@@ -104,9 +103,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       "view_call_recordings",
       "override_lead_assignments",
       "generate_reports",
-      "edit_all_leads",
       "update_pipeline_stage",
       "add_notes",
+      "access_pipeline_full",
+      "convert_leads_to_customers",
     ],
   },
   call_center_manager: {
@@ -141,6 +141,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       "manage_pipeline_stages",
       "generate_reports",
       "override_lead_assignments",
+      "access_pipeline_full",
+      "view_all_performance",
+      "view_team_performance",
+      "view_center_performance",
+      "view_own_performance",
+      "convert_leads_to_customers",
+      "close_deals",
+      "update_pipeline_stage",
+      "add_notes",
+      "view_call_recordings",
+      "add_call_recordings",
+      "make_outbound_calls",
     ],
   },
 };
@@ -194,8 +206,6 @@ export function getLeadsViewFilter(role: UserRole | null | undefined, userId: st
     
     case "sales_agent_licensed":
     case "sales_agent_unlicensed":
-      return { filterBy: "assigned_agent_id", value: userId };
-    
     case "sales_manager":
       return { filterBy: "all", value: null };
     
@@ -226,9 +236,9 @@ export function canEditLead(
     
     case "sales_agent_licensed":
     case "sales_agent_unlicensed":
-      return lead.assigned_agent_id === userId;
-    
     case "sales_manager":
+      return false;
+    
     case "call_center_manager":
     case "system_admin":
       return hasPermission(role, "edit_all_leads");
@@ -236,6 +246,13 @@ export function canEditLead(
     default:
       return false;
   }
+}
+
+export function canCreateLead(role: UserRole | null | undefined): boolean {
+  if (!role) {
+    return false;
+  }
+  return role === "call_center_agent" || hasPermission(role, "access_all_system_data");
 }
 
 export function canDeleteLead(role: UserRole | null | undefined): boolean {

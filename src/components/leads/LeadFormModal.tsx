@@ -78,9 +78,9 @@ export function LeadFormModal({ onLeadCreated }: LeadFormModalProps) {
       if (stageError) throw new Error("Failed to fetch default stage: " + stageError.message);
       if (!firstStage) throw new Error("No stage found in the default pipeline.");
 
-      const { beneficiary_name, beneficiary_relation, ...dbData } = data;
+      const { beneficiary_name, beneficiary_relation, call_center_id, ...dbData } = data;
       
-      const { error } = await (supabase.from("leads") as any).insert({
+      const leadData = {
         ...dbData,
         submission_id: `SUB-${Date.now()}`, 
         pipeline_id: (firstPipeline as any).id,
@@ -88,8 +88,32 @@ export function LeadFormModal({ onLeadCreated }: LeadFormModalProps) {
         beneficiary_info: {
             name: beneficiary_name,
             relation: beneficiary_relation
+        },
+        call_center_id: call_center_id && call_center_id !== "" ? call_center_id : null,
+      } as any;
+
+      if (leadData.ssn && leadData.call_center_id) {
+        const { data: existingLead, error: checkError } = await supabase
+          .from("leads")
+          .select("id, first_name, last_name")
+          .eq("ssn", leadData.ssn)
+          .eq("call_center_id", leadData.call_center_id)
+          .limit(1)
+          .single();
+
+        if (checkError && checkError.code !== "PGRST116") {
+          throw new Error("Failed to check for duplicate leads: " + checkError.message);
         }
-      } as any);
+
+        if (existingLead) {
+          toast.error("A lead with this SSN already exists in this call center. Duplicate leads cannot be added.");
+          setLoading(false);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
+      const { error } = await (supabase.from("leads") as any).insert(leadData);
 
       if (error) throw error;
 

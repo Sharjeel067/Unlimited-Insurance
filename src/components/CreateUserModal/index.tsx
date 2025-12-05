@@ -48,7 +48,10 @@ export function CreateUserModal({ onUserCreated, userToEdit, isOpen: controlledO
         setEmail(userToEdit.email || "");
         setFullName(userToEdit.full_name || "");
         setRole(userToEdit.role || "sales_agent_unlicensed");
-        setCallCenterId(userToEdit.call_center_id || "");
+        // Sales agents and sales managers should not have call_center_id
+        const role = userToEdit.role || "sales_agent_unlicensed";
+        const shouldHaveCallCenter = role.includes("call_center");
+        setCallCenterId(shouldHaveCallCenter ? (userToEdit.call_center_id || "") : "");
         setManagerId(userToEdit.manager_id || "");
         setPassword(""); // Don't populate password
       } else {
@@ -75,12 +78,14 @@ export function CreateUserModal({ onUserCreated, userToEdit, isOpen: controlledO
     try {
       if (userToEdit) {
         // Update existing user
+        // Sales agents and sales managers should not have call_center_id
+        const shouldHaveCallCenter = role.includes("call_center");
         const { error } = await (supabase
           .from('profiles') as any)
           .update({
             full_name: fullName,
             role,
-            call_center_id: callCenterId || null,
+            call_center_id: shouldHaveCallCenter ? (callCenterId || null) : null,
             manager_id: managerId || null,
           })
           .eq('id', userToEdit.id);
@@ -91,6 +96,8 @@ export function CreateUserModal({ onUserCreated, userToEdit, isOpen: controlledO
         setIsOpen(false);
         onUserCreated(); 
       } else {
+        // Sales agents and sales managers should not have call_center_id
+        const shouldHaveCallCenter = role.includes("call_center");
         const response = await fetch('/api/users/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -99,7 +106,7 @@ export function CreateUserModal({ onUserCreated, userToEdit, isOpen: controlledO
             password,
             full_name: fullName,
             role,
-            call_center_id: callCenterId || null,
+            call_center_id: shouldHaveCallCenter ? (callCenterId || null) : null,
             manager_id: managerId || null
           })
         });
@@ -196,7 +203,7 @@ export function CreateUserModal({ onUserCreated, userToEdit, isOpen: controlledO
             </select>
           </div>
 
-          {(role.includes("call_center")) && (
+          {role.includes("call_center") && (
             <div>
               <label className="text-sm font-medium">Call Center</label>
               <select

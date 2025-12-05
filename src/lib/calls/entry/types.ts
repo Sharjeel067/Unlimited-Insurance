@@ -1,0 +1,47 @@
+export interface Lead {
+    id: string;
+    submission_id: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    phone_number: string | null;
+    email: string | null;
+    ssn: string | null;
+    state: string | null;
+    address: string | null;
+    city: string | null;
+    zip_code: string | null;
+    date_of_birth: string | null;
+    birth_state: string | null;
+    driver_license: string | null;
+    age: number | null;
+    height: string | null;
+    weight: string | null;
+    tobacco_use: boolean | null;
+    health_conditions: string | null;
+    medications: string | null;
+    doctor_name: string | null;
+    existing_coverage: string | null;
+    desired_coverage: number | null;
+    monthly_budget: number | null;
+    draft_date: string | null;
+    bank_name: string | null;
+    routing_number: string | null;
+    account_number: string | null;
+    beneficiary_info: any;
+    assigned_agent_id: string | null;
+    buffer_agent_id: string | null;
+    call_center_id: string | null;
+    user_id: string | null;
+    stage_id: string | null;
+    pipeline_id: string | null;
+    lead_value: number | null;
+    created_at: string | null;
+    updated_at: string | null;
+    last_contacted_at: string | null;
+    profiles?: { full_name: string } | null;
+    buffer_agent?: { full_name: string } | null;
+    call_centers?: { name: string } | null;
+    stages?: { name: string; color_code: string } | null;
+    pipelines?: { name: string; type: string } | null;
+}
+
