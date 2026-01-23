@@ -3,7 +3,7 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "@/lib/supabaseClient";
-import { Phone, MapPin, DollarSign, User, ChevronDown, Loader2, Search, X, Pencil, List, Kanban, Filter } from "lucide-react";
+import { Phone, MapPin, DollarSign, User, ChevronDown, Loader2, Search, X, Pencil, List, Kanban, Filter, MessageSquare, Plus } from "lucide-react";
 import { format } from "date-fns";
 import {
   DndContext,
@@ -26,6 +26,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { CreateStageModal } from "@/components/CreateStageModal";
 import { ChangePipelineModal } from "@/components/stages/ChangePipelineModal";
+import { AddNoteModal } from "@/components/leads/AddNoteModal";
 import { getContrastTextColor } from "@/lib/utils";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
@@ -62,6 +63,7 @@ interface Lead {
   created_at?: string;
   profiles?: { full_name: string };
   stages?: Stage;
+  note_count?: number;
   [key: string]: any;
 }
 
@@ -69,12 +71,13 @@ interface LeadCardProps {
   lead: Lead;
   onClick: () => void;
   onEditClick?: () => void;
+  onAddNoteClick?: (lead: Lead) => void;
   stages: Stage[];
   isReadOnly?: boolean;
   canEdit?: boolean;
 }
 
-function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canEdit = false }: LeadCardProps) {
+function LeadCard({ lead, onClick, onEditClick, onAddNoteClick, stages, isReadOnly = false, canEdit = false }: LeadCardProps) {
   const {
     attributes,
     listeners,
@@ -97,6 +100,13 @@ function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canE
     }
   };
 
+  const handleAddNoteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddNoteClick) {
+      onAddNoteClick(lead);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -107,18 +117,27 @@ function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canE
         e.stopPropagation();
         onClick();
       }}
-      className={`bg-card p-3 rounded-lg border border-border shadow-sm hover:shadow-md transition-all relative ${isReadOnly ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
+      className={`bg-card p-3 rounded-lg border border-border shadow-sm hover:shadow-md transition-all relative group ${isReadOnly ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
     >
-      {canEdit && (
+      <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
         <button
-          onClick={handleEditClick}
-          className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors z-10"
-          title="Change Pipeline & Stage"
+          onClick={handleAddNoteClick}
+          className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          title="Add Note"
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
-      )}
-      <div className="font-medium text-foreground text-sm mb-2 pr-6">
+        {canEdit && (
+          <button
+            onClick={handleEditClick}
+            className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Change Pipeline & Stage"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      <div className="font-medium text-foreground text-sm mb-2 pr-12">
         {lead.first_name} {lead.last_name}
       </div>
       
@@ -141,19 +160,29 @@ function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canE
           <User className="w-3 h-3" />
           <span className="truncate">{lead.profiles?.full_name || "Unassigned"}</span>
         </div>
-        
-        {lead.lead_value > 0 && (
-          <div className="flex items-center gap-1.5 text-emerald-600 font-semibold pt-1">
-            <DollarSign className="w-3 h-3" />
-            ${lead.lead_value.toLocaleString()}
+
+        <div className="flex items-center justify-between pt-1 border-t border-border/50 mt-1.5">
+          <div className="flex items-center gap-3">
+            {lead.note_count !== undefined && (
+              <div className="flex items-center gap-1 text-muted-foreground" title="Notes">
+                <MessageSquare className="w-3 h-3" />
+                <span>{lead.note_count}</span>
+              </div>
+            )}
+            {lead.lead_value > 0 && (
+              <div className="flex items-center gap-1 text-emerald-600 font-semibold">
+                <DollarSign className="w-3 h-3" />
+                ${lead.lead_value.toLocaleString()}
+              </div>
+            )}
           </div>
-        )}
-        
-        {lead.created_at && (
-          <div className="text-muted-foreground pt-1 border-t border-border/50 mt-1.5">
-            {format(new Date(lead.created_at), "MMM d")}
-          </div>
-        )}
+          
+          {lead.created_at && (
+            <div className="text-muted-foreground">
+              {format(new Date(lead.created_at), "MMM d")}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -165,6 +194,7 @@ interface DroppableStageColumnProps {
   leads: Lead[];
   onLeadClick: (leadId: string) => void;
   onLeadEditClick?: (lead: Lead) => void;
+  onAddNoteClick?: (lead: Lead) => void;
   isOver?: boolean;
   stages: Stage[];
   userRole: string | null;
@@ -174,7 +204,7 @@ interface DroppableStageColumnProps {
   totalCount?: number;
 }
 
-function DroppableStageColumn({ id, stage, leads, onLeadClick, onLeadEditClick, isOver, stages, userRole, onLoadMore, hasMore, isLoading, totalCount }: DroppableStageColumnProps) {
+function DroppableStageColumn({ id, stage, leads, onLeadClick, onLeadEditClick, onAddNoteClick, isOver, stages, userRole, onLoadMore, hasMore, isLoading, totalCount }: DroppableStageColumnProps) {
   const { setNodeRef, isOver: droppableIsOver } = useDroppable({ id });
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -227,6 +257,7 @@ function DroppableStageColumn({ id, stage, leads, onLeadClick, onLeadEditClick, 
               lead={lead}
               onClick={() => onLeadClick(lead.id)}
               onEditClick={onLeadEditClick ? () => onLeadEditClick(lead) : undefined}
+              onAddNoteClick={onAddNoteClick}
               stages={stages}
               isReadOnly={!canDragDropInPipeline(userRole)}
               canEdit={userRole === "sales_manager" || userRole === "system_admin"}
@@ -279,6 +310,8 @@ export default function PipelinePage() {
   const [loadingStage, setLoadingStage] = useState<string | null>(null);
   const [changePipelineModalOpen, setChangePipelineModalOpen] = useState(false);
   const [selectedLeadForPipelineChange, setSelectedLeadForPipelineChange] = useState<Lead | null>(null);
+  const [selectedLeadForNote, setSelectedLeadForNote] = useState<Lead | null>(null);
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -343,7 +376,8 @@ export default function PipelinePage() {
           .from("leads")
           .select(`
             *,
-            profiles:assigned_agent_id ( full_name )
+            profiles:assigned_agent_id ( full_name ),
+            lead_notes ( count )
           `, { count: "exact" })
           .eq("pipeline_id", selectedPipelineId)
           .range((listCurrentPage - 1) * LEADS_PER_PAGE, listCurrentPage * LEADS_PER_PAGE - 1);
@@ -367,7 +401,11 @@ export default function PipelinePage() {
         const { data: listLeads, count: listCount } = await listQuery;
         
         if (listLeads) {
-            setLeads(listLeads as any);
+            const mappedLeads = (listLeads as any[]).map(lead => ({
+              ...lead,
+              note_count: lead.lead_notes?.[0]?.count || 0
+            }));
+            setLeads(mappedLeads as any);
             setListTotalCount(listCount || 0);
         }
         setLoading(false);
@@ -407,7 +445,8 @@ export default function PipelinePage() {
       .from("leads")
       .select(`
         *,
-        profiles:assigned_agent_id ( full_name )
+        profiles:assigned_agent_id ( full_name ),
+        lead_notes ( count )
       `)
       .eq("pipeline_id", selectedPipelineId)
       .limit(LEADS_PER_PAGE * (stagesData?.length || 1));
@@ -432,10 +471,14 @@ export default function PipelinePage() {
       const stageGroups: Record<string, any[]> = {};
       
       (leadsData as any[]).forEach(lead => {
-        if (!stageGroups[lead.stage_id]) {
-          stageGroups[lead.stage_id] = [];
+        const mappedLead = {
+          ...lead,
+          note_count: lead.lead_notes?.[0]?.count || 0
+        };
+        if (!stageGroups[mappedLead.stage_id]) {
+          stageGroups[mappedLead.stage_id] = [];
         }
-        stageGroups[lead.stage_id].push(lead);
+        stageGroups[mappedLead.stage_id].push(mappedLead);
       });
       
       Object.keys(stageGroups).forEach(stageId => {
@@ -475,7 +518,8 @@ export default function PipelinePage() {
         .from("leads")
         .select(`
           *,
-          profiles:assigned_agent_id ( full_name )
+          profiles:assigned_agent_id ( full_name ),
+          lead_notes ( count )
         `)
         .eq("stage_id", stageId)
         .eq("pipeline_id", selectedPipelineId)
@@ -497,7 +541,11 @@ export default function PipelinePage() {
       const { data: newLeads } = await query;
       
       if (newLeads && newLeads.length > 0) {
-        setLeads(prev => [...prev, ...(newLeads as any)]);
+        const mappedLeads = (newLeads as any[]).map(lead => ({
+          ...lead,
+          note_count: lead.lead_notes?.[0]?.count || 0
+        }));
+        setLeads(prev => [...prev, ...(mappedLeads as any)]);
         setStageLeadCounts(prev => ({
           ...prev,
           [stageId]: {
@@ -639,6 +687,11 @@ export default function PipelinePage() {
   const handleLeadEditClick = (lead: Lead) => {
     setSelectedLeadForPipelineChange(lead);
     setChangePipelineModalOpen(true);
+  };
+
+  const handleAddNoteClick = (lead: Lead) => {
+    setSelectedLeadForNote(lead);
+    setIsAddNoteModalOpen(true);
   };
 
   const handlePipelineChangeSuccess = () => {
@@ -822,13 +875,15 @@ export default function PipelinePage() {
                           <th className="px-6 py-4">Phone</th>
                           <th className="px-6 py-4">State</th>
                           <th className="px-6 py-4">Agent</th>
+                          <th className="px-6 py-4">Notes</th>
+                          <th className="px-6 py-4">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border bg-card">
                         {leads.length > 0 ? leads.map(lead => (
                           <tr
                             key={lead.id}
-                            className="hover:bg-accent/50 transition-colors cursor-pointer"
+                            className="hover:bg-accent/50 transition-colors cursor-pointer group"
                             onClick={() => handleLeadClick(lead.id)}
                           >
                             <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">{lead.first_name} {lead.last_name}</td>
@@ -852,10 +907,29 @@ export default function PipelinePage() {
                             <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{lead.phone_number || '-'}</td>
                             <td className="px-6 py-4 text-muted-foreground">{lead.state || '-'}</td>
                             <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{lead.profiles?.full_name || 'Unassigned'}</td>
+                            <td className="px-6 py-4 text-muted-foreground">
+                              <div className="flex items-center gap-1.5">
+                                <MessageSquare className="w-4 h-4" />
+                                <span>{lead.note_count || 0}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddNoteClick(lead);
+                                }}
+                                className="p-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
+                                title="Add Note"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span className="text-xs font-medium">Add Note</span>
+                              </button>
+                            </td>
                           </tr>
                         )) : (
                           <tr>
-                            <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                            <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
                               No leads found matching your filters.
                             </td>
                           </tr>
@@ -893,6 +967,7 @@ export default function PipelinePage() {
                             leads={stageLeads}
                             onLeadClick={handleLeadClick}
                             onLeadEditClick={handleLeadEditClick}
+                            onAddNoteClick={handleAddNoteClick}
                             isOver={overId === stage.id}
                             stages={stages}
                             userRole={userRole}
@@ -943,6 +1018,18 @@ export default function PipelinePage() {
           }}
           lead={selectedLeadForPipelineChange}
           onSuccess={handlePipelineChangeSuccess}
+        />
+      )}
+
+      {selectedLeadForNote && (
+        <AddNoteModal
+          isOpen={isAddNoteModalOpen}
+          onClose={() => {
+            setIsAddNoteModalOpen(false);
+            setSelectedLeadForNote(null);
+          }}
+          lead={selectedLeadForNote}
+          onSuccess={fetchData}
         />
       )}
     </DashboardLayout>
