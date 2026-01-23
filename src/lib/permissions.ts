@@ -61,9 +61,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       "view_own_leads",
       "view_center_leads",
       "access_pipeline_readonly",
-      "view_call_recordings",
-      "add_notes",
-      "edit_own_leads",
+      "view_call_recordings"
     ],
   },
   sales_agent_licensed: {
@@ -72,12 +70,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     permissions: [
       "view_all_leads",
       "update_lead_status",
-      "update_pipeline_stage",
-      "access_pipeline_full",
+      "access_pipeline_readonly",
       "add_notes",
       "add_call_recordings",
       "make_outbound_calls",
-      "convert_leads_to_customers",
       "close_deals",
       "view_own_performance",
     ],
@@ -116,9 +112,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       "view_center_leads",
       "manage_call_center_agents",
       "view_center_performance",
-      "access_pipeline_full",
-      "edit_all_leads",
-      "add_notes",
+      "access_pipeline_readonly"
     ],
   },
   system_admin: {
