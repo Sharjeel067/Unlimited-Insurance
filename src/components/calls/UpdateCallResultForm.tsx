@@ -127,40 +127,24 @@ export function UpdateCallResultForm({
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">Buffer Agent</label>
-                        <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            {...register("buffer_agent")}
-                        >
-                            <option value="">Select buffer agent</option>
-                            {agents.map((agent) => (
-                                <option key={agent.id} value={agent.id}>
-                                    {agent.full_name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-foreground">
-                            Agent who took the call <span className="text-destructive">*</span>
-                        </label>
-                        <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            {...register("agent_who_took_call")}
-                        >
-                            <option value="">Select agent</option>
-                            {agents.map((agent) => (
-                                <option key={agent.id} value={agent.id}>
-                                    {agent.full_name}
-                                </option>
-                            ))}
-                        </select>
-                        {errors.agent_who_took_call && (
-                            <span className="text-xs text-destructive">{errors.agent_who_took_call.message}</span>
-                        )}
-                    </div>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">
+                        Agent who took the call <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        {...register("agent_who_took_call")}
+                    >
+                        <option value="">Select agent</option>
+                        {agents.map((agent) => (
+                            <option key={agent.id} value={agent.id}>
+                                {agent.full_name}
+                            </option>
+                        ))}
+                    </select>
+                    {errors.agent_who_took_call && (
+                        <span className="text-xs text-destructive">{errors.agent_who_took_call.message}</span>
+                    )}
                 </div>
 
                 <div className="space-y-2">
