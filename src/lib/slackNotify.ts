@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { FunctionsHttpError, FunctionsRelayError, FunctionsFetchError } from "@supabase/supabase-js";
 
 interface SlackNotifyOptions {
   message: string;
@@ -9,8 +10,17 @@ interface SlackNotifyOptions {
   attachments?: unknown[];
 }
 
+interface SlackNotifyResult {
+  success: boolean;
+  error?: string;
+  hint?: string;
+}
+
 /**
  * Send a notification to Slack via the slack-notify Edge Function.
+ * 
+ * This function handles all errors gracefully and never throws.
+ * If Slack is not configured, it will silently log and return.
  *
  * @param options - Notification options
  * @returns Promise with success status
@@ -24,31 +34,59 @@ interface SlackNotifyOptions {
  *   message: "New lead submitted",
  *   channel: "#leads",
  * });
- *
- * // With rich formatting
- * await sendSlackNotification({
- *   message: "Call Result Update",
- *   blocks: [
- *     { type: "header", text: { type: "plain_text", text: "Call Result Updated" } },
- *     { type: "section", text: { type: "mrkdwn", text: "*Customer:* John Doe\n*Status:* Approved" } },
- *   ],
- * });
  */
-export async function sendSlackNotification(options: SlackNotifyOptions): Promise<{ success: boolean; error?: string }> {
+export async function sendSlackNotification(options: SlackNotifyOptions): Promise<SlackNotifyResult> {
   try {
     const { data, error } = await supabase.functions.invoke("slack-notify", {
       body: options,
     });
 
+    // Handle Supabase function errors
     if (error) {
-      console.error("[sendSlackNotification] Error:", error);
+      // FunctionsHttpError: Function returned non-2xx status
+      if (error instanceof FunctionsHttpError) {
+        try {
+          const errorData = await error.context.json();
+          console.warn("[Slack] Edge Function error:", errorData.error, errorData.hint || "");
+          return { 
+            success: false, 
+            error: errorData.error || "Slack notification failed",
+            hint: errorData.hint,
+          };
+        } catch {
+          console.warn("[Slack] Edge Function returned error (no details)");
+          return { success: false, error: "Slack notification failed" };
+        }
+      }
+
+      // FunctionsRelayError: Relay error (e.g., function not deployed)
+      if (error instanceof FunctionsRelayError) {
+        console.warn("[Slack] Function relay error - is slack-notify deployed?");
+        return { success: false, error: "Slack function not available" };
+      }
+
+      // FunctionsFetchError: Network error
+      if (error instanceof FunctionsFetchError) {
+        console.warn("[Slack] Network error:", error.message);
+        return { success: false, error: "Network error" };
+      }
+
+      // Generic error
+      console.warn("[Slack] Unknown error:", error.message);
       return { success: false, error: error.message };
+    }
+
+    // Check if the response indicates success
+    if (data && data.success === false) {
+      console.warn("[Slack] API returned failure:", data.error);
+      return { success: false, error: data.error, hint: data.hint };
     }
 
     return { success: true };
   } catch (err) {
-    console.error("[sendSlackNotification] Exception:", err);
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+    // Catch-all for any unexpected errors
+    console.warn("[Slack] Exception (non-blocking):", err instanceof Error ? err.message : "Unknown");
+    return { success: false, error: "Slack notification failed" };
   }
 }
 
