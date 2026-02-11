@@ -25,17 +25,31 @@ const FIELD_ORDER = [
   "primary_user_same_as_client",
   "primary_user_first_name",
   "primary_user_last_name",
+  // Product Information
+  "company_name",
+  "quoted_product",
+  "device_cost",
+  "discounted_device_cost",
+  "shipping_cost",
+  "monthly_subscription",
   // Payment Information
   "payment_method",
-  "include_protection_plan",
-  "card_number",
-  "expiry_date",
-  "cvv",
+  "protection_plan_included",
+  "card_number_last_four",
+  "card_expiry",
   "cardholder_name",
+  "account_holder_name",
   "routing_number",
   "account_number",
   "account_type",
-  "account_holder_name",
+  // Lead Info
+  "lead_vendor",
+  "center_user_name",
+  "source",
+  "form_version",
+  // Totals
+  "total_upfront_cost",
+  "total_monthly_cost",
 ];
 
 interface VerificationPanelProps {
@@ -71,12 +85,15 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
       `Address: ${[fieldValues.address, fieldValues.city, fieldValues.state, fieldValues.zip_code].filter(Boolean).join(", ") || "N/A"}`,
       `Primary User Same As Client: ${fieldValues.primary_user_same_as_client ?? "N/A"}`,
       `Primary User: ${fieldValues.primary_user_first_name ?? ""} ${fieldValues.primary_user_last_name ?? ""}`.trim() || "N/A",
+      `Product: ${fieldValues.quoted_product ?? "N/A"}`,
+      `Company: ${fieldValues.company_name ?? "N/A"}`,
+      `Device Cost: $${fieldValues.device_cost ?? "N/A"}`,
+      `Monthly Subscription: $${fieldValues.monthly_subscription ?? "N/A"}`,
       `Payment Method: ${fieldValues.payment_method ?? "N/A"}`,
-      `Protection Plan: ${fieldValues.include_protection_plan ?? "N/A"}`,
-      ...(fieldValues.payment_method === 'credit_card' ? [
-        `Card Number: ${fieldValues.card_number ?? "N/A"}`,
-        `Expiry: ${fieldValues.expiry_date ?? "N/A"}`,
-        `CVV: ${fieldValues.cvv ?? "N/A"}`,
+      `Protection Plan: ${fieldValues.protection_plan_included ?? "N/A"}`,
+      ...(fieldValues.payment_method?.toLowerCase().includes('credit') ? [
+        `Card Last 4: ${fieldValues.card_number_last_four ?? "N/A"}`,
+        `Card Expiry: ${fieldValues.card_expiry ?? "N/A"}`,
         `Cardholder: ${fieldValues.cardholder_name ?? "N/A"}`,
       ] : [
         `Account Holder: ${fieldValues.account_holder_name ?? "N/A"}`,
@@ -84,6 +101,9 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
         `Account: ${fieldValues.account_number ?? "N/A"}`,
         `Account Type: ${fieldValues.account_type ?? "N/A"}`,
       ]),
+      `Total Upfront: $${fieldValues.total_upfront_cost ?? "N/A"}`,
+      `Total Monthly: $${fieldValues.total_monthly_cost ?? "N/A"}`,
+      `Lead Vendor: ${fieldValues.lead_vendor ?? "N/A"}`,
     ];
     navigator.clipboard.writeText(lines.join("\n"));
     toast.success("Lead information copied to clipboard");

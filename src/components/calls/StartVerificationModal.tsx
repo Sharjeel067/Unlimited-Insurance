@@ -199,35 +199,46 @@ export function StartVerificationModal({
       };
 
       const fields: { field_name: string; field_category: string; original_value: string }[] = [
-        { field_name: "lead_vendor", field_category: "additional", original_value: get("lead_vendor") },
-        { field_name: "customer_full_name", field_category: "personal", original_value: get("customer_full_name") || [get("first_name"), get("last_name")].filter(Boolean).join(" ").trim() },
-        { field_name: "street_address", field_category: "contact", original_value: get("street_address", "address") },
-        { field_name: "beneficiary_information", field_category: "banking", original_value: get("beneficiary_information", "beneficiary_info") },
-        { field_name: "date_of_birth", field_category: "personal", original_value: get("date_of_birth") },
-        { field_name: "age", field_category: "personal", original_value: get("age") },
-        { field_name: "phone_number", field_category: "contact", original_value: get("phone_number") },
-        { field_name: "social_security", field_category: "personal", original_value: get("social_security", "ssn") },
-        { field_name: "driver_license", field_category: "personal", original_value: get("driver_license") },
-        { field_name: "existing_coverage", field_category: "health", original_value: get("existing_coverage") },
-        { field_name: "height", field_category: "health", original_value: get("height") },
-        { field_name: "weight", field_category: "health", original_value: get("weight") },
-        { field_name: "doctors_name", field_category: "health", original_value: get("doctors_name", "doctor_name") },
-        { field_name: "tobacco_use", field_category: "health", original_value: get("tobacco_use") },
-        { field_name: "health_conditions", field_category: "health", original_value: get("health_conditions") },
-        { field_name: "medications", field_category: "health", original_value: get("medications") },
-        { field_name: "carrier", field_category: "insurance", original_value: get("carrier") },
-        { field_name: "monthly_premium", field_category: "insurance", original_value: get("monthly_premium", "monthly_budget") },
-        { field_name: "coverage_amount", field_category: "insurance", original_value: get("coverage_amount", "desired_coverage") },
-        { field_name: "draft_date", field_category: "insurance", original_value: get("draft_date") },
-        { field_name: "institution_name", field_category: "banking", original_value: get("institution_name", "bank_name") },
-        { field_name: "beneficiary_routing", field_category: "banking", original_value: get("beneficiary_routing", "routing_number") },
-        { field_name: "beneficiary_account", field_category: "banking", original_value: get("beneficiary_account", "account_number") },
-        { field_name: "account_type", field_category: "banking", original_value: get("account_type") },
-        { field_name: "city", field_category: "contact", original_value: get("city") },
-        { field_name: "state", field_category: "contact", original_value: get("state") },
-        { field_name: "zip_code", field_category: "contact", original_value: get("zip_code") },
-        { field_name: "birth_state", field_category: "personal", original_value: get("birth_state") },
-        { field_name: "additional_notes", field_category: "additional", original_value: get("additional_notes") },
+        // Client Information
+        { field_name: "email", field_category: "client", original_value: get("email") },
+        { field_name: "first_name", field_category: "client", original_value: get("first_name") },
+        { field_name: "last_name", field_category: "client", original_value: get("last_name") },
+        { field_name: "phone_number", field_category: "client", original_value: get("phone_number") },
+        { field_name: "address", field_category: "client", original_value: get("address") },
+        { field_name: "city", field_category: "client", original_value: get("city") },
+        { field_name: "state", field_category: "client", original_value: get("state") },
+        { field_name: "zip_code", field_category: "client", original_value: get("zip_code") },
+        // Primary User Information
+        { field_name: "primary_user_same_as_client", field_category: "primary_user", original_value: get("primary_user_same_as_client") },
+        { field_name: "primary_user_first_name", field_category: "primary_user", original_value: get("primary_user_first_name") },
+        { field_name: "primary_user_last_name", field_category: "primary_user", original_value: get("primary_user_last_name") },
+        // Product Information
+        { field_name: "company_name", field_category: "product", original_value: get("company_name") },
+        { field_name: "quoted_product", field_category: "product", original_value: get("quoted_product") },
+        { field_name: "device_cost", field_category: "product", original_value: get("device_cost") },
+        { field_name: "discounted_device_cost", field_category: "product", original_value: get("discounted_device_cost") },
+        { field_name: "shipping_cost", field_category: "product", original_value: get("shipping_cost") },
+        { field_name: "monthly_subscription", field_category: "product", original_value: get("monthly_subscription") },
+        // Payment Information
+        { field_name: "payment_method", field_category: "payment", original_value: get("payment_method") },
+        { field_name: "protection_plan_included", field_category: "payment", original_value: get("protection_plan_included") },
+        // Credit Card (if applicable)
+        { field_name: "card_number_last_four", field_category: "payment", original_value: get("card_number_last_four") },
+        { field_name: "card_expiry", field_category: "payment", original_value: get("card_expiry") },
+        { field_name: "cardholder_name", field_category: "payment", original_value: get("cardholder_name") },
+        // ACH/Bank Transfer (if applicable)
+        { field_name: "account_holder_name", field_category: "payment", original_value: get("account_holder_name") },
+        { field_name: "routing_number", field_category: "payment", original_value: get("routing_number") },
+        { field_name: "account_number", field_category: "payment", original_value: get("account_number") },
+        { field_name: "account_type", field_category: "payment", original_value: get("account_type") },
+        // Lead Info
+        { field_name: "lead_vendor", field_category: "lead", original_value: get("lead_vendor") },
+        { field_name: "center_user_name", field_category: "lead", original_value: get("center_user_name") },
+        { field_name: "source", field_category: "lead", original_value: get("source") },
+        { field_name: "form_version", field_category: "lead", original_value: get("form_version") },
+        // Totals
+        { field_name: "total_upfront_cost", field_category: "totals", original_value: get("total_upfront_cost") },
+        { field_name: "total_monthly_cost", field_category: "totals", original_value: get("total_monthly_cost") },
       ];
 
       const items = fields.map((f) => ({
