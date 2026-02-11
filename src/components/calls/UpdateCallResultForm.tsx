@@ -105,14 +105,14 @@ export function UpdateCallResultForm({
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">
-                        Agent who took the call <span className="text-destructive">*</span>
+                        Licensed Agent who took the call <span className="text-destructive">*</span>
                     </label>
                     <select
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         {...register("agent_who_took_call")}
                     >
-                        <option value="">Select agent</option>
-                        {agents.map((agent) => (
+                        <option value="">Select licensed agent</option>
+                        {licensedAgents.map((agent) => (
                             <option key={agent.id} value={agent.id}>
                                 {agent.full_name}
                             </option>
