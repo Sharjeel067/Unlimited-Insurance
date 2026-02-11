@@ -223,7 +223,7 @@ export function StartVerificationModal({
         { field_name: "payment_method", field_category: "payment", original_value: get("payment_method") },
         { field_name: "protection_plan_included", field_category: "payment", original_value: get("protection_plan_included") },
         // Credit Card (if applicable)
-        { field_name: "card_number_last_four", field_category: "payment", original_value: get("card_number_last_four") },
+        { field_name: "card_number", field_category: "payment", original_value: get("card_number_last_four") },
         { field_name: "card_expiry", field_category: "payment", original_value: get("card_expiry") },
         { field_name: "cardholder_name", field_category: "payment", original_value: get("cardholder_name") },
         // ACH/Bank Transfer (if applicable)
@@ -231,6 +231,7 @@ export function StartVerificationModal({
         { field_name: "routing_number", field_category: "payment", original_value: get("routing_number") },
         { field_name: "account_number", field_category: "payment", original_value: get("account_number") },
         { field_name: "account_type", field_category: "payment", original_value: get("account_type") },
+        { field_name: "bank_name", field_category: "payment", original_value: get("bank_name") },
         // Lead Info
         { field_name: "lead_vendor", field_category: "lead", original_value: get("lead_vendor") },
         { field_name: "center_user_name", field_category: "lead", original_value: get("center_user_name") },

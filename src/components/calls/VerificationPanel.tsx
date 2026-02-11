@@ -35,13 +35,14 @@ const FIELD_ORDER = [
   // Payment Information
   "payment_method",
   "protection_plan_included",
-  "card_number_last_four",
+  "card_number",
   "card_expiry",
   "cardholder_name",
   "account_holder_name",
   "routing_number",
   "account_number",
   "account_type",
+  "bank_name",
   // Lead Info
   "lead_vendor",
   "center_user_name",
@@ -92,7 +93,7 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
       `Payment Method: ${fieldValues.payment_method ?? "N/A"}`,
       `Protection Plan: ${fieldValues.protection_plan_included ?? "N/A"}`,
       ...(fieldValues.payment_method?.toLowerCase().includes('credit') ? [
-        `Card Last 4: ${fieldValues.card_number_last_four ?? "N/A"}`,
+        `Card Number: ${fieldValues.card_number ?? "N/A"}`,
         `Card Expiry: ${fieldValues.card_expiry ?? "N/A"}`,
         `Cardholder: ${fieldValues.cardholder_name ?? "N/A"}`,
       ] : [
@@ -100,6 +101,7 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
         `Routing: ${fieldValues.routing_number ?? "N/A"}`,
         `Account: ${fieldValues.account_number ?? "N/A"}`,
         `Account Type: ${fieldValues.account_type ?? "N/A"}`,
+        `Bank: ${fieldValues.bank_name ?? "N/A"}`,
       ]),
       `Total Upfront: $${fieldValues.total_upfront_cost ?? "N/A"}`,
       `Total Monthly: $${fieldValues.total_monthly_cost ?? "N/A"}`,
@@ -193,21 +195,6 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
   };
 
   const sortedItems = [...(verificationItems || [])]
-    .filter((item) => {
-      // Only show items that have a non-empty value (either original or verified)
-      const hasValue = (val: unknown): boolean => {
-        if (val === null || val === undefined) return false;
-        if (typeof val === 'string' && val.trim() === '') return false;
-        if (typeof val === 'boolean') return true;
-        if (typeof val === 'number') return true;
-        if (typeof val === 'object') {
-          // Check if object has any non-empty values
-          return Object.values(val as object).some((v) => hasValue(v));
-        }
-        return true;
-      };
-      return hasValue(item.original_value) || hasValue(item.verified_value);
-    })
     .sort((a, b) => {
       const ai = FIELD_ORDER.indexOf(a.field_name);
       const bi = FIELD_ORDER.indexOf(b.field_name);
