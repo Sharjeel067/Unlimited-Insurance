@@ -57,18 +57,20 @@ export function StartVerificationModal({
   const fetchFromAgentStatus = async (
     type: "licensed"
   ): Promise<{ id: string; display_name: string; status: string }[]> => {
-    const { data: agents, error } = await supabase
+    const { data, error } = await supabase
       .from("agent_status")
       .select("user_id, status")
       .eq("agent_type", type);
+    const agents = data as { user_id: string; status: string }[] | null;
 
     if (error || !agents?.length) return [];
 
     const ids = agents.map((a) => a.user_id);
-    const { data: profiles } = await supabase
+    const { data: profileData } = await supabase
       .from("profiles")
       .select("id, full_name")
       .in("id", ids);
+    const profiles = profileData as { id: string; full_name: string | null }[] | null;
 
     return (agents || []).map((agent) => {
       const p = (profiles || []).find((r) => r.id === agent.user_id);
@@ -83,11 +85,12 @@ export function StartVerificationModal({
   const fetchFromProfilesByRole = async (
     role: "sales_agent_unlicensed" | "sales_agent_licensed"
   ): Promise<{ id: string; display_name: string; status: string }[]> => {
-    const { data, error } = await supabase
+    const { data: rawData, error } = await supabase
       .from("profiles")
       .select("id, full_name")
       .eq("role", role)
       .order("full_name");
+    const data = rawData as { id: string; full_name: string | null }[] | null;
 
     if (error || !data?.length) return [];
     return data.map((r) => ({
@@ -152,16 +155,16 @@ export function StartVerificationModal({
 
       const { data: session, error: sessionError } = await supabase
         .from("verification_sessions")
-        .insert(sessionData)
+        .insert(sessionData as any)
         .select()
-        .single();
+        .single() as { data: any; error: any };
 
       if (sessionError) throw sessionError;
 
       try {
-        await supabase
-          .from("leads")
-          .update({ is_retention_call: isRetentionCall } as Record<string, unknown>)
+        await (supabase
+          .from("leads") as any)
+          .update({ is_retention_call: isRetentionCall })
           .eq("submission_id", submissionId);
       } catch {
         /* leads.is_retention_call may not exist */
@@ -242,8 +245,8 @@ export function StartVerificationModal({
 
       const { data: insertedItems, error: itemsErr } = await supabase
         .from("verification_items")
-        .insert(items)
-        .select();
+        .insert(items as any)
+        .select() as { data: any; error: any };
       
       if (itemsErr) {
         console.error("[StartVerification] Error inserting verification_items:", itemsErr);
@@ -251,13 +254,13 @@ export function StartVerificationModal({
       }
       console.log("[StartVerification] Successfully inserted", insertedItems?.length, "items");
 
-      await supabase
-        .from("verification_sessions")
+      await (supabase
+        .from("verification_sessions") as any)
         .update({ total_fields: items.length })
         .eq("id", session.id);
 
       try {
-        await supabase.from("agent_status").upsert({
+        await (supabase.from("agent_status") as any).upsert({
           user_id: agentId,
           status: "on_call",
           current_session_id: session.id,

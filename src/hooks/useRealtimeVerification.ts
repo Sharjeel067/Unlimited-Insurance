@@ -50,8 +50,9 @@ export function useRealtimeVerification(sessionId: string) {
         console.error("[useRealtimeVerification] Session error:", sessionError);
         throw sessionError;
       }
-      console.log("[useRealtimeVerification] Session found:", sessionData?.id, "status:", sessionData?.status);
-      setSession(sessionData as VerificationSessionRow);
+      const typedSession = sessionData as unknown as VerificationSessionRow;
+      console.log("[useRealtimeVerification] Session found:", typedSession?.id, "status:", typedSession?.status);
+      setSession(typedSession);
 
       const { data: itemsData, error: itemsError } = await supabase
         .from("verification_items")
@@ -63,11 +64,12 @@ export function useRealtimeVerification(sessionId: string) {
         console.error("[useRealtimeVerification] Items error:", itemsError);
         throw itemsError;
       }
-      console.log("[useRealtimeVerification] Items found:", itemsData?.length ?? 0);
-      if (itemsData && itemsData.length > 0) {
-        console.log("[useRealtimeVerification] Sample item:", itemsData[0]);
+      const typedItems = (itemsData as unknown as VerificationItemRow[]) || [];
+      console.log("[useRealtimeVerification] Items found:", typedItems.length);
+      if (typedItems.length > 0) {
+        console.log("[useRealtimeVerification] Sample item:", typedItems[0]);
       }
-      setVerificationItems((itemsData as VerificationItemRow[]) || []);
+      setVerificationItems(typedItems);
       setError(null);
     } catch (err) {
       console.error("[useRealtimeVerification] Fetch error:", err);
@@ -81,9 +83,9 @@ export function useRealtimeVerification(sessionId: string) {
     itemId: string,
     updates: Partial<VerificationItemRow>
   ) => {
-    const { data, error: updateError } = await supabase
-      .from("verification_items")
-      .update({ ...updates, updated_at: new Date().toISOString() })
+    const { data, error: updateError } = await (supabase
+      .from("verification_items") as unknown as { update: (val: Record<string, unknown>) => { eq: (col: string, val: string) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } } } })
+      .update({ ...updates, updated_at: new Date().toISOString() } as Record<string, unknown>)
       .eq("id", itemId)
       .select()
       .single();
@@ -126,8 +128,8 @@ export function useRealtimeVerification(sessionId: string) {
     if (status === "transferred") {
       updates.transferred_at = new Date().toISOString();
     }
-    const { data, error: updateError } = await supabase
-      .from("verification_sessions")
+    const { data, error: updateError } = await (supabase
+      .from("verification_sessions") as unknown as { update: (val: Record<string, unknown>) => { eq: (col: string, val: string) => { select: () => { single: () => Promise<{ data: unknown; error: unknown }> } } } })
       .update(updates)
       .eq("id", sessionId)
       .select()

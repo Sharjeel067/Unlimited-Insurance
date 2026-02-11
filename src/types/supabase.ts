@@ -581,6 +581,210 @@ export interface Database {
           sync_status?: string | null
         }
       }
+      agent_status: {
+        Row: {
+          user_id: string
+          agent_type: string
+          status: string
+          current_session_id: string | null
+          last_activity: string | null
+        }
+        Insert: {
+          user_id: string
+          agent_type?: string
+          status?: string
+          current_session_id?: string | null
+          last_activity?: string | null
+        }
+        Update: {
+          user_id?: string
+          agent_type?: string
+          status?: string
+          current_session_id?: string | null
+          last_activity?: string | null
+        }
+      }
+      verification_sessions: {
+        Row: {
+          id: string
+          submission_id: string
+          status: string
+          buffer_agent_id: string | null
+          licensed_agent_id: string | null
+          total_fields: number | null
+          started_at: string | null
+          completed_at: string | null
+          transferred_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          submission_id: string
+          status?: string
+          buffer_agent_id?: string | null
+          licensed_agent_id?: string | null
+          total_fields?: number | null
+          started_at?: string | null
+          completed_at?: string | null
+          transferred_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          submission_id?: string
+          status?: string
+          buffer_agent_id?: string | null
+          licensed_agent_id?: string | null
+          total_fields?: number | null
+          started_at?: string | null
+          completed_at?: string | null
+          transferred_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      verification_items: {
+        Row: {
+          id: string
+          session_id: string
+          field_name: string
+          field_category: string | null
+          original_value: string | null
+          verified_value: string | null
+          is_verified: boolean
+          is_modified: boolean
+          notes: string | null
+          verified_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          field_name: string
+          field_category?: string | null
+          original_value?: string | null
+          verified_value?: string | null
+          is_verified?: boolean
+          is_modified?: boolean
+          notes?: string | null
+          verified_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          field_name?: string
+          field_category?: string | null
+          original_value?: string | null
+          verified_value?: string | null
+          is_verified?: boolean
+          is_modified?: boolean
+          notes?: string | null
+          verified_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      call_update: {
+        Row: {
+          id: string
+          lead_id: string | null
+          user_id: string | null
+          agent_id: string | null
+          buffer_agent: string | null
+          agent_who_took_call: string | null
+          application_submitted: boolean | null
+          call_source: string | null
+          status: string | null
+          notes: string | null
+          submission_id: string | null
+          dq_reason: string | null
+          licensed_agent_account: string | null
+          carrier: string | null
+          product_type: string | null
+          draft_date: string | null
+          monthly_premium: number | null
+          coverage_amount: number | null
+          sent_to_underwriting: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          lead_id?: string | null
+          user_id?: string | null
+          agent_id?: string | null
+          buffer_agent?: string | null
+          agent_who_took_call?: string | null
+          application_submitted?: boolean | null
+          call_source?: string | null
+          status?: string | null
+          notes?: string | null
+          submission_id?: string | null
+          dq_reason?: string | null
+          licensed_agent_account?: string | null
+          carrier?: string | null
+          product_type?: string | null
+          draft_date?: string | null
+          monthly_premium?: number | null
+          coverage_amount?: number | null
+          sent_to_underwriting?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          lead_id?: string | null
+          user_id?: string | null
+          agent_id?: string | null
+          buffer_agent?: string | null
+          agent_who_took_call?: string | null
+          application_submitted?: boolean | null
+          call_source?: string | null
+          status?: string | null
+          notes?: string | null
+          submission_id?: string | null
+          dq_reason?: string | null
+          licensed_agent_account?: string | null
+          carrier?: string | null
+          product_type?: string | null
+          draft_date?: string | null
+          monthly_premium?: number | null
+          coverage_amount?: number | null
+          sent_to_underwriting?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      log_call_update: {
+        Args: {
+          p_submission_id: string
+          p_agent_id: string
+          p_agent_type: string
+          p_agent_name: string
+          p_event_type: string
+          p_event_details: Record<string, unknown>
+          p_verification_session_id: string | null
+          p_customer_name: string | null
+          p_lead_vendor: string | null
+        }
+        Returns: string
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }

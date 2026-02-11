@@ -26,7 +26,7 @@ export const logCallUpdate = async (
   event: CallLogEvent
 ): Promise<string | null> => {
   try {
-    const { data, error } = await supabase.rpc("log_call_update", {
+    const { data, error } = await (supabase.rpc as CallableFunction)("log_call_update", {
       p_submission_id: event.submissionId,
       p_agent_id: event.agentId,
       p_agent_type: event.agentType,

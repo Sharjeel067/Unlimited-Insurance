@@ -124,7 +124,7 @@ export async function notifyCallResultUpdate(params: {
     applicationSubmitted === "yes" ? "Application Submitted" :
     applicationSubmitted === "app_fix" ? "App Fix Required" : "Not Submitted";
 
-  const blocks = [
+  const blocks: Record<string, unknown>[] = [
     {
       type: "header",
       text: { type: "plain_text", text: `${statusEmoji} Call Result Updated`, emoji: true },
@@ -150,7 +150,7 @@ export async function notifyCallResultUpdate(params: {
         { type: "mrkdwn", text: `*Premium:*\n$${premium?.toFixed(2) || "N/A"}` },
         { type: "mrkdwn", text: `*Coverage:*\n$${coverage?.toLocaleString() || "N/A"}` },
       ],
-    } as typeof blocks[0]);
+    });
   }
 
   // Add notes if present
@@ -158,13 +158,13 @@ export async function notifyCallResultUpdate(params: {
     blocks.push({
       type: "section",
       text: { type: "mrkdwn", text: `*Notes:*\n${notes.substring(0, 500)}${notes.length > 500 ? "..." : ""}` },
-    } as typeof blocks[0]);
+    });
   }
 
   blocks.push({
     type: "context",
     elements: [{ type: "mrkdwn", text: `Sent from Unlimited Insurance CRM • ${new Date().toLocaleString()}` }],
-  } as typeof blocks[0]);
+  });
 
   return sendSlackNotification({
     message: `Call result updated for ${customerName} by ${agentName}`,

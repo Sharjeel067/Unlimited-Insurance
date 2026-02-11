@@ -6,6 +6,7 @@ interface ColoredProgressProps
   extends React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root> {
   value?: number;
   color?: string;
+  className?: string;
 }
 
 const ColoredProgress = React.forwardRef<
