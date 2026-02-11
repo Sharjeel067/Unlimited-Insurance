@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "react-toastify";
 import { UpdateCallResultFormData } from "./schema";
 import { Lead } from "./types";
+import { notifyCallResultUpdate } from "@/lib/slackNotify";
 
 interface UseSubmitCallResultProps {
     lead: Lead;
@@ -104,6 +105,28 @@ export function useSubmitCallResult({ lead, agents, stages }: UseSubmitCallResul
 
                 if (dealError) throw dealError;
             }
+
+            // Send Slack notification
+            const agentName = agents.find(a => a.id === data.agent_who_took_call)?.full_name || "Unknown Agent";
+            const stageName = stages.find(s => s.id === data.status)?.name || data.status;
+            const customerName = lead.first_name && lead.last_name 
+              ? `${lead.first_name} ${lead.last_name}`.trim()
+              : (lead as unknown as { customer_full_name?: string }).customer_full_name || "Unknown";
+
+            notifyCallResultUpdate({
+              customerName,
+              submissionId: lead.submission_id || lead.id,
+              status: stageName,
+              agentName,
+              applicationSubmitted: data.application_submitted,
+              carrier: data.carrier,
+              premium: data.monthly_premium,
+              coverage: data.coverage_amount,
+              notes: data.notes,
+            }).catch((err) => {
+              // Don't block on Slack notification failure
+              console.error("[Slack] Notification failed:", err);
+            });
 
             toast.success("Call result saved successfully");
             router.push("/calls/entry");

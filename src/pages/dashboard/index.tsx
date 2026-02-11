@@ -41,7 +41,7 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Admin Dashboard - Insurance CRM</title>
+        <title>Admin Dashboard - Unlimited Insurance CRM</title>
       </Head>
 
       <div className="mb-8">

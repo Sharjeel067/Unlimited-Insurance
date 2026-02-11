@@ -3,7 +3,7 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "@/lib/supabaseClient";
-import { Phone, MapPin, DollarSign, User, ChevronDown, Loader2, Search, X, Pencil } from "lucide-react";
+import { Phone, MapPin, DollarSign, User, ChevronDown, Loader2, Search, X, Pencil, List, Kanban, Filter, MessageSquare, Plus } from "lucide-react";
 import { format } from "date-fns";
 import {
   DndContext,
@@ -26,12 +26,15 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { CreateStageModal } from "@/components/CreateStageModal";
 import { ChangePipelineModal } from "@/components/stages/ChangePipelineModal";
+import { AddNoteModal } from "@/components/leads/AddNoteModal";
 import { getContrastTextColor } from "@/lib/utils";
 import { toast } from "react-toastify";
 import { cn } from "@/lib/utils";
 import { getLeadsViewFilter, canDragDropInPipeline, canManagePipelineStages, isValidRole, type UserRole } from "@/lib/permissions";
 import { Input } from "@/components/ui/Input";
 import { useCallback, useRef } from "react";
+
+import { Pagination } from "@/components/ui/Pagination";
 
 interface Pipeline {
   id: string;
@@ -60,6 +63,7 @@ interface Lead {
   created_at?: string;
   profiles?: { full_name: string };
   stages?: Stage;
+  note_count?: number;
   [key: string]: any;
 }
 
@@ -67,12 +71,13 @@ interface LeadCardProps {
   lead: Lead;
   onClick: () => void;
   onEditClick?: () => void;
+  onAddNoteClick?: (lead: Lead) => void;
   stages: Stage[];
   isReadOnly?: boolean;
   canEdit?: boolean;
 }
 
-function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canEdit = false }: LeadCardProps) {
+function LeadCard({ lead, onClick, onEditClick, onAddNoteClick, stages, isReadOnly = false, canEdit = false }: LeadCardProps) {
   const {
     attributes,
     listeners,
@@ -95,6 +100,13 @@ function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canE
     }
   };
 
+  const handleAddNoteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddNoteClick) {
+      onAddNoteClick(lead);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -105,18 +117,27 @@ function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canE
         e.stopPropagation();
         onClick();
       }}
-      className={`bg-card p-3 rounded-lg border border-border shadow-sm hover:shadow-md transition-all relative ${isReadOnly ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
+      className={`bg-card p-3 rounded-lg border border-border shadow-sm hover:shadow-md transition-all relative group ${isReadOnly ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
     >
-      {canEdit && (
+      <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
         <button
-          onClick={handleEditClick}
-          className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors z-10"
-          title="Change Pipeline & Stage"
+          onClick={handleAddNoteClick}
+          className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+          title="Add Note"
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
-      )}
-      <div className="font-medium text-foreground text-sm mb-2 pr-6">
+        {canEdit && (
+          <button
+            onClick={handleEditClick}
+            className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Change Pipeline & Stage"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+      <div className="font-medium text-foreground text-sm mb-2 pr-12">
         {lead.first_name} {lead.last_name}
       </div>
       
@@ -139,19 +160,29 @@ function LeadCard({ lead, onClick, onEditClick, stages, isReadOnly = false, canE
           <User className="w-3 h-3" />
           <span className="truncate">{lead.profiles?.full_name || "Unassigned"}</span>
         </div>
-        
-        {lead.lead_value > 0 && (
-          <div className="flex items-center gap-1.5 text-emerald-600 font-semibold pt-1">
-            <DollarSign className="w-3 h-3" />
-            ${lead.lead_value.toLocaleString()}
+
+        <div className="flex items-center justify-between pt-1 border-t border-border/50 mt-1.5">
+          <div className="flex items-center gap-3">
+            {lead.note_count !== undefined && (
+              <div className="flex items-center gap-1 text-muted-foreground" title="Notes">
+                <MessageSquare className="w-3 h-3" />
+                <span>{lead.note_count}</span>
+              </div>
+            )}
+            {lead.lead_value > 0 && (
+              <div className="flex items-center gap-1 text-emerald-600 font-semibold">
+                <DollarSign className="w-3 h-3" />
+                ${lead.lead_value.toLocaleString()}
+              </div>
+            )}
           </div>
-        )}
-        
-        {lead.created_at && (
-          <div className="text-muted-foreground pt-1 border-t border-border/50 mt-1.5">
-            {format(new Date(lead.created_at), "MMM d")}
-          </div>
-        )}
+          
+          {lead.created_at && (
+            <div className="text-muted-foreground">
+              {format(new Date(lead.created_at), "MMM d")}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -163,6 +194,7 @@ interface DroppableStageColumnProps {
   leads: Lead[];
   onLeadClick: (leadId: string) => void;
   onLeadEditClick?: (lead: Lead) => void;
+  onAddNoteClick?: (lead: Lead) => void;
   isOver?: boolean;
   stages: Stage[];
   userRole: string | null;
@@ -172,7 +204,7 @@ interface DroppableStageColumnProps {
   totalCount?: number;
 }
 
-function DroppableStageColumn({ id, stage, leads, onLeadClick, onLeadEditClick, isOver, stages, userRole, onLoadMore, hasMore, isLoading, totalCount }: DroppableStageColumnProps) {
+function DroppableStageColumn({ id, stage, leads, onLeadClick, onLeadEditClick, onAddNoteClick, isOver, stages, userRole, onLoadMore, hasMore, isLoading, totalCount }: DroppableStageColumnProps) {
   const { setNodeRef, isOver: droppableIsOver } = useDroppable({ id });
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -225,8 +257,9 @@ function DroppableStageColumn({ id, stage, leads, onLeadClick, onLeadEditClick, 
               lead={lead}
               onClick={() => onLeadClick(lead.id)}
               onEditClick={onLeadEditClick ? () => onLeadEditClick(lead) : undefined}
+              onAddNoteClick={onAddNoteClick}
               stages={stages}
-              isReadOnly={userRole === "call_center_agent"}
+              isReadOnly={!canDragDropInPipeline(userRole)}
               canEdit={userRole === "sales_manager" || userRole === "system_admin"}
             />
           ))}
@@ -262,6 +295,14 @@ export default function PipelinePage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  // View Control
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
+  const [filterStageId, setFilterStageId] = useState<string>('all');
+  
+  // List Pagination
+  const [listCurrentPage, setListCurrentPage] = useState(1);
+  const [listTotalCount, setListTotalCount] = useState(0);
+
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
   const [isPipelineDropdownOpen, setIsPipelineDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -269,6 +310,8 @@ export default function PipelinePage() {
   const [loadingStage, setLoadingStage] = useState<string | null>(null);
   const [changePipelineModalOpen, setChangePipelineModalOpen] = useState(false);
   const [selectedLeadForPipelineChange, setSelectedLeadForPipelineChange] = useState<Lead | null>(null);
+  const [selectedLeadForNote, setSelectedLeadForNote] = useState<Lead | null>(null);
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -326,6 +369,50 @@ export default function PipelinePage() {
       setStages(stagesData as any);
       
       const filter = getLeadsViewFilter(role, session.user.id);
+
+      // --- LIST VIEW LOGIC ---
+      if (viewMode === 'list') {
+        let listQuery = supabase
+          .from("leads")
+          .select(`
+            *,
+            profiles:assigned_agent_id ( full_name ),
+            lead_notes ( count )
+          `, { count: "exact" })
+          .eq("pipeline_id", selectedPipelineId)
+          .range((listCurrentPage - 1) * LEADS_PER_PAGE, listCurrentPage * LEADS_PER_PAGE - 1);
+
+        if (filterStageId !== 'all') {
+            listQuery = listQuery.eq("stage_id", filterStageId);
+        }
+
+        if (filter.filterBy === "assigned_agent_id" && filter.value) {
+            listQuery = listQuery.eq("assigned_agent_id", filter.value);
+        } else if (filter.filterBy === "call_center_id" && callCenterId) {
+            listQuery = listQuery.eq("call_center_id", callCenterId);
+        } else if (filter.filterBy === "user_id" && filter.value) {
+            listQuery = listQuery.eq("user_id", filter.value);
+        }
+
+        if (searchQuery) {
+            listQuery = listQuery.or(`first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%,phone_number.ilike.%${searchQuery}%,state.ilike.%${searchQuery}%`);
+        }
+
+        const { data: listLeads, count: listCount } = await listQuery;
+        
+        if (listLeads) {
+            const mappedLeads = (listLeads as any[]).map(lead => ({
+              ...lead,
+              note_count: lead.lead_notes?.[0]?.count || 0
+            }));
+            setLeads(mappedLeads as any);
+            setListTotalCount(listCount || 0);
+        }
+        setLoading(false);
+        return; // Exit early for List View
+      }
+
+      // --- BOARD VIEW LOGIC ---
       const counts: Record<string, {loaded: number, total: number}> = {};
       
       for (const stage of (stagesData as any[])) {
@@ -358,7 +445,8 @@ export default function PipelinePage() {
       .from("leads")
       .select(`
         *,
-        profiles:assigned_agent_id ( full_name )
+        profiles:assigned_agent_id ( full_name ),
+        lead_notes ( count )
       `)
       .eq("pipeline_id", selectedPipelineId)
       .limit(LEADS_PER_PAGE * (stagesData?.length || 1));
@@ -383,10 +471,14 @@ export default function PipelinePage() {
       const stageGroups: Record<string, any[]> = {};
       
       (leadsData as any[]).forEach(lead => {
-        if (!stageGroups[lead.stage_id]) {
-          stageGroups[lead.stage_id] = [];
+        const mappedLead = {
+          ...lead,
+          note_count: lead.lead_notes?.[0]?.count || 0
+        };
+        if (!stageGroups[mappedLead.stage_id]) {
+          stageGroups[mappedLead.stage_id] = [];
         }
-        stageGroups[lead.stage_id].push(lead);
+        stageGroups[mappedLead.stage_id].push(mappedLead);
       });
       
       Object.keys(stageGroups).forEach(stageId => {
@@ -426,7 +518,8 @@ export default function PipelinePage() {
         .from("leads")
         .select(`
           *,
-          profiles:assigned_agent_id ( full_name )
+          profiles:assigned_agent_id ( full_name ),
+          lead_notes ( count )
         `)
         .eq("stage_id", stageId)
         .eq("pipeline_id", selectedPipelineId)
@@ -448,7 +541,11 @@ export default function PipelinePage() {
       const { data: newLeads } = await query;
       
       if (newLeads && newLeads.length > 0) {
-        setLeads(prev => [...prev, ...(newLeads as any)]);
+        const mappedLeads = (newLeads as any[]).map(lead => ({
+          ...lead,
+          note_count: lead.lead_notes?.[0]?.count || 0
+        }));
+        setLeads(prev => [...prev, ...(mappedLeads as any)]);
         setStageLeadCounts(prev => ({
           ...prev,
           [stageId]: {
@@ -483,9 +580,13 @@ export default function PipelinePage() {
 
   useEffect(() => {
     if (selectedPipelineId) {
+      // Reset page when switching views or filtering
+      if (viewMode === 'list') {
+         // Keep current page if just switching view? No, safer to reset or keep logic separate
+      }
       fetchData();
     }
-  }, [selectedPipelineId, searchQuery]);
+  }, [selectedPipelineId, searchQuery, viewMode, listCurrentPage, filterStageId]);
 
   const fetchUserRole = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -588,6 +689,11 @@ export default function PipelinePage() {
     setChangePipelineModalOpen(true);
   };
 
+  const handleAddNoteClick = (lead: Lead) => {
+    setSelectedLeadForNote(lead);
+    setIsAddNoteModalOpen(true);
+  };
+
   const handlePipelineChangeSuccess = () => {
     fetchData();
   };
@@ -601,7 +707,11 @@ export default function PipelinePage() {
       return aOrder - bOrder;
     });
 
+  const visibleStages = selectedPipelineStages.filter(s => filterStageId === 'all' || s.id === filterStageId);
+
   const filteredLeads = leads.filter(lead => {
+    if (filterStageId !== 'all' && lead.stage_id !== filterStageId) return false;
+
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -613,7 +723,7 @@ export default function PipelinePage() {
     );
   });
 
-  const groupedStageLeads = selectedPipelineStages.map(stage => {
+  const groupedStageLeads = visibleStages.map(stage => {
     return {
       stage,
       leads: filteredLeads.filter(l => l.stage_id === stage.id && l.pipeline_id === selectedPipelineId)
@@ -628,7 +738,7 @@ export default function PipelinePage() {
         <title>Stages - CRM</title>
       </Head>
 
-      <div className="flex flex-col h-[calc(100vh-8rem)] w-full">
+      <div className="flex flex-col h-[calc(100vh-8rem)] w-full overflow-hidden">
         <div className="mb-6 flex items-center justify-between shrink-0">
           <div className="flex-1 max-w-md">
             <div className="relative">
@@ -663,95 +773,228 @@ export default function PipelinePage() {
           </div>
         ) : (
           <>
-            <div className="mb-4 shrink-0">
-              <div className="relative inline-block">
+            <div className="mb-4 shrink-0 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                {/* Pipeline Selector */}
+                <div className="relative inline-block">
+                  <button
+                    onClick={() => setIsPipelineDropdownOpen(!isPipelineDropdownOpen)}
+                    className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <span className="font-medium text-foreground">
+                      {selectedPipeline?.name || "Select Pipeline"}
+                    </span>
+                    <ChevronDown className={cn(
+                      "w-4 h-4 text-muted-foreground transition-transform",
+                      isPipelineDropdownOpen && "rotate-180"
+                    )} />
+                  </button>
+                  {isPipelineDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setIsPipelineDropdownOpen(false)}
+                      />
+                      <div className="absolute top-full left-0 mt-2 w-full min-w-[200px] bg-card border border-border rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                        {pipelines.map((pipeline) => (
+                          <button
+                            key={pipeline.id}
+                            onClick={() => {
+                              setSelectedPipelineId(pipeline.id);
+                              setIsPipelineDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-4 py-2 hover:bg-accent transition-colors",
+                              selectedPipelineId === pipeline.id && "bg-accent"
+                            )}
+                          >
+                            {pipeline.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Stage Filter */}
+                <div className="relative flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <select
+                    className="h-10 pl-3 pr-8 rounded-md border border-input bg-card text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={filterStageId}
+                    onChange={(e) => setFilterStageId(e.target.value)}
+                  >
+                    <option value="all">All Stages</option>
+                    {selectedPipelineStages.map(stage => (
+                      <option key={stage.id} value={stage.id}>
+                        {stage.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* View Toggle */}
+              <div className="flex bg-muted p-1 rounded-lg border border-border">
                 <button
-                  onClick={() => setIsPipelineDropdownOpen(!isPipelineDropdownOpen)}
-                  className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-accent transition-colors"
+                  onClick={() => setViewMode('board')}
+                  className={cn(
+                    "p-2 rounded-md transition-all flex items-center gap-2 text-sm",
+                    viewMode === 'board' ? "bg-background shadow-sm text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Board View"
                 >
-                  <span className="font-medium text-foreground">
-                    {selectedPipeline?.name || "Select Pipeline"}
-                  </span>
-                  <ChevronDown className={cn(
-                    "w-4 h-4 text-muted-foreground transition-transform",
-                    isPipelineDropdownOpen && "rotate-180"
-                  )} />
+                  <Kanban className="w-4 h-4" />
+                  <span className="hidden sm:inline">Board</span>
                 </button>
-                {isPipelineDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setIsPipelineDropdownOpen(false)}
-                    />
-                    <div className="absolute top-full left-0 mt-2 w-full bg-card border border-border rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto min-w-[200px]">
-                      {pipelines.map((pipeline) => (
-                        <button
-                          key={pipeline.id}
-                          onClick={() => {
-                            setSelectedPipelineId(pipeline.id);
-                            setIsPipelineDropdownOpen(false);
-                          }}
-                          className={cn(
-                            "w-full text-left px-4 py-2 hover:bg-accent transition-colors",
-                            selectedPipelineId === pipeline.id && "bg-accent"
-                          )}
-                        >
-                          {pipeline.name}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "p-2 rounded-md transition-all flex items-center gap-2 text-sm",
+                    viewMode === 'list' ? "bg-background shadow-sm text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="List View"
+                >
+                  <List className="w-4 h-4" />
+                  <span className="hidden sm:inline">List</span>
+                </button>
               </div>
             </div>
 
             {selectedPipelineId ? (
             selectedPipelineStages.length > 0 ? (
-              <DndContext
-                sensors={canDragDropInPipeline(userRole) ? sensors : []}
-                collisionDetection={closestCorners}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                  <div className="flex gap-4 overflow-x-auto overflow-y-hidden px-2 pt-2 pb-4 flex-1 min-h-0">
-                    {groupedStageLeads.map(({ stage, leads: stageLeads }) => {
-                      const stageCount = stageLeadCounts[stage.id];
-                      return (
-                        <DroppableStageColumn
-                          key={stage.id}
-                          id={stage.id}
-                          stage={stage}
-                          leads={stageLeads}
-                          onLeadClick={handleLeadClick}
-                          onLeadEditClick={handleLeadEditClick}
-                          isOver={overId === stage.id}
-                          stages={stages}
-                          userRole={userRole}
-                          onLoadMore={() => loadMoreLeadsForStage(stage.id)}
-                          hasMore={stageCount ? stageCount.loaded < stageCount.total : false}
-                          isLoading={loadingStage === stage.id}
-                          totalCount={stageCount?.total}
-                        />
-                      );
-                    })}
+              viewMode === 'list' ? (
+                <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+                  <div className="overflow-auto flex-1">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-muted/50 text-muted-foreground font-medium sticky top-0 z-10 shadow-sm">
+                        <tr>
+                          <th className="px-6 py-4">Name</th>
+                          <th className="px-6 py-4">Stage</th>
+                          <th className="px-6 py-4">Value</th>
+                          <th className="px-6 py-4">Phone</th>
+                          <th className="px-6 py-4">State</th>
+                          <th className="px-6 py-4">Agent</th>
+                          <th className="px-6 py-4">Notes</th>
+                          <th className="px-6 py-4">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border bg-card">
+                        {leads.length > 0 ? leads.map(lead => (
+                          <tr
+                            key={lead.id}
+                            className="hover:bg-accent/50 transition-colors cursor-pointer group"
+                            onClick={() => handleLeadClick(lead.id)}
+                          >
+                            <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">{lead.first_name} {lead.last_name}</td>
+                            <td className="px-6 py-4">
+                              {(() => {
+                                const stage = stages.find(s => s.id === lead.stage_id);
+                                return (
+                                  <span
+                                    className="px-2.5 py-0.5 rounded-full text-xs font-medium inline-block whitespace-nowrap"
+                                    style={{
+                                      backgroundColor: stage?.color_code || '#e5e7eb',
+                                      color: getContrastTextColor(stage?.color_code || '#e5e7eb')
+                                    }}
+                                  >
+                                    {stage?.name || 'Unknown'}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">${lead.lead_value?.toLocaleString() || '0'}</td>
+                            <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{lead.phone_number || '-'}</td>
+                            <td className="px-6 py-4 text-muted-foreground">{lead.state || '-'}</td>
+                            <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">{lead.profiles?.full_name || 'Unassigned'}</td>
+                            <td className="px-6 py-4 text-muted-foreground">
+                              <div className="flex items-center gap-1.5">
+                                <MessageSquare className="w-4 h-4" />
+                                <span>{lead.note_count || 0}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddNoteClick(lead);
+                                }}
+                                className="p-2 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors flex items-center gap-2"
+                                title="Add Note"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span className="text-xs font-medium">Add Note</span>
+                              </button>
+                            </td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
+                              No leads found matching your filters.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="border-t border-border p-4">
+                    <Pagination
+                      currentPage={listCurrentPage}
+                      totalPages={Math.ceil(listTotalCount / LEADS_PER_PAGE)}
+                      onPageChange={setListCurrentPage}
+                      totalItems={listTotalCount}
+                      itemsPerPage={LEADS_PER_PAGE}
+                    />
                   </div>
                 </div>
-
-                <DragOverlay>
-                  {activeLead ? (
-                    <div className="bg-card p-3 rounded-lg border border-border shadow-lg w-[300px] rotate-2">
-                      <div className="font-medium text-foreground text-sm mb-2">
-                        {activeLead.first_name} {activeLead.last_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {activeLead.profiles?.full_name || "Unassigned"}
-                      </div>
+              ) : (
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col w-full max-w-full">
+                  <DndContext
+                    sensors={canDragDropInPipeline(userRole) ? sensors : []}
+                    collisionDetection={closestCorners}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="flex gap-4 overflow-x-auto overflow-y-hidden px-2 pt-2 pb-4 flex-1 min-h-0 w-full">
+                      {groupedStageLeads.map(({ stage, leads: stageLeads }) => {
+                        const stageCount = stageLeadCounts[stage.id];
+                        return (
+                          <DroppableStageColumn
+                            key={stage.id}
+                            id={stage.id}
+                            stage={stage}
+                            leads={stageLeads}
+                            onLeadClick={handleLeadClick}
+                            onLeadEditClick={handleLeadEditClick}
+                            onAddNoteClick={handleAddNoteClick}
+                            isOver={overId === stage.id}
+                            stages={stages}
+                            userRole={userRole}
+                            onLoadMore={() => loadMoreLeadsForStage(stage.id)}
+                            hasMore={stageCount ? stageCount.loaded < stageCount.total : false}
+                            isLoading={loadingStage === stage.id}
+                            totalCount={stageCount?.total}
+                          />
+                        );
+                      })}
                     </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+
+                    <DragOverlay>
+                      {activeLead ? (
+                        <div className="bg-card p-3 rounded-lg border border-border shadow-lg w-[300px] rotate-2">
+                          <div className="font-medium text-foreground text-sm mb-2">
+                            {activeLead.first_name} {activeLead.last_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {activeLead.profiles?.full_name || "Unassigned"}
+                          </div>
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
+                </div>
+              )
             ) : (
               <div className="flex items-center justify-center flex-1 text-muted-foreground">
                 No stages found for this pipeline. Create your first stage to get started.
@@ -775,6 +1018,18 @@ export default function PipelinePage() {
           }}
           lead={selectedLeadForPipelineChange}
           onSuccess={handlePipelineChangeSuccess}
+        />
+      )}
+
+      {selectedLeadForNote && (
+        <AddNoteModal
+          isOpen={isAddNoteModalOpen}
+          onClose={() => {
+            setIsAddNoteModalOpen(false);
+            setSelectedLeadForNote(null);
+          }}
+          lead={selectedLeadForNote}
+          onSuccess={fetchData}
         />
       )}
     </DashboardLayout>

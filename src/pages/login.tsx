@@ -35,7 +35,7 @@ export default function LoginPage() {
   return (
     <>
       <Head>
-        <title>Sign In - Insurance CRM</title>
+        <title>Sign In - Unlimited Insurance CRM</title>
       </Head>
       
       <div className="min-h-screen flex">
@@ -56,7 +56,7 @@ export default function LoginPage() {
                 <div className="p-3 rounded-xl bg-primary/10 backdrop-blur-sm border border-primary/20 shadow-sm">
                   <Shield className="w-7 h-7 text-primary" />
                 </div>
-                <span className="text-2xl font-bold tracking-tight">Insurance CRM</span>
+                <span className="text-2xl font-bold tracking-tight">Unlimited Insurance CRM</span>
               </div>
               <h1 className="text-5xl font-bold mb-4 leading-tight">
                 Welcome!
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <Shield className="w-6 h-6 text-primary" />
                 </div>
-                <span className="text-xl font-bold">Insurance CRM</span>
+                <span className="text-xl font-bold">Unlimited Insurance CRM</span>
               </div>
             </div>
 
@@ -175,11 +175,7 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              <div className="pt-4 border-t border-border">
-                <p className="text-xs text-center text-muted-foreground">
-                  Secure login powered by Supabase Auth
-                </p>
-              </div>
+              
 
               <div className="pt-4 border-t border-border">
                 <div className="bg-muted/50 rounded-lg p-4 border border-border">
@@ -196,7 +192,7 @@ export default function LoginPage() {
 
             {/* Footer */}
             <p className="mt-8 text-center text-xs text-muted-foreground">
-              © {new Date().getFullYear()} Insurance CRM. All rights reserved.
+              © {new Date().getFullYear()} Unlimited Insurance CRM. All rights reserved.
             </p>
           </div>
         </div>
