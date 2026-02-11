@@ -581,6 +581,90 @@ export interface Database {
           sync_status?: string | null
         }
       }
+      agent_status: {
+        Row: {
+          user_id: string
+          agent_type: string | null
+          status: string | null
+          current_session_id: string | null
+          last_activity: string | null
+        }
+        Insert: {
+          user_id: string
+          agent_type?: string | null
+          status?: string | null
+          current_session_id?: string | null
+          last_activity?: string | null
+        }
+        Update: {
+          user_id?: string
+          agent_type?: string | null
+          status?: string | null
+          current_session_id?: string | null
+          last_activity?: string | null
+        }
+      }
+      verification_sessions: {
+        Row: {
+          id: string
+          submission_id: string
+          licensed_agent_id: string
+          status: string
+          total_fields: number | null
+          started_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          submission_id: string
+          licensed_agent_id: string
+          status: string
+          total_fields?: number | null
+          started_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          submission_id?: string
+          licensed_agent_id?: string
+          status?: string
+          total_fields?: number | null
+          started_at?: string
+          completed_at?: string | null
+        }
+      }
+      verification_items: {
+        Row: {
+          id: string
+          session_id: string
+          field_name: string
+          field_category: string
+          original_value: string | null
+          verified_value: string | null
+          is_verified: boolean
+          is_modified: boolean
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          field_name: string
+          field_category: string
+          original_value?: string | null
+          verified_value?: string | null
+          is_verified?: boolean
+          is_modified?: boolean
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          field_name?: string
+          field_category?: string
+          original_value?: string | null
+          verified_value?: string | null
+          is_verified?: boolean
+          is_modified?: boolean
+        }
+      }
     }
   }
 }
