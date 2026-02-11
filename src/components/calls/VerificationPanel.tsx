@@ -12,36 +12,30 @@ import { logCallUpdate, getLeadInfo } from "@/lib/callLogging";
 import { useRealtimeVerification, type VerificationItemRow } from "@/hooks/useRealtimeVerification";
 
 const FIELD_ORDER = [
-  "lead_vendor",
-  "customer_full_name",
-  "street_address",
-  "beneficiary_information",
-  "billing_and_mailing_address_is_the_same",
-  "date_of_birth",
-  "age",
+  // Client Information
+  "email",
+  "first_name",
+  "last_name",
   "phone_number",
-  "social_security",
-  "driver_license",
-  "existing_coverage",
-  "height",
-  "weight",
-  "doctors_name",
-  "tobacco_use",
-  "health_conditions",
-  "medications",
-  "carrier",
-  "monthly_premium",
-  "coverage_amount",
-  "draft_date",
-  "institution_name",
-  "beneficiary_routing",
-  "beneficiary_account",
-  "account_type",
+  "address",
   "city",
   "state",
   "zip_code",
-  "birth_state",
-  "additional_notes",
+  // Primary User
+  "primary_user_same_as_client",
+  "primary_user_first_name",
+  "primary_user_last_name",
+  // Payment Information
+  "payment_method",
+  "include_protection_plan",
+  "card_number",
+  "expiry_date",
+  "cvv",
+  "cardholder_name",
+  "routing_number",
+  "account_number",
+  "account_type",
+  "account_holder_name",
 ];
 
 interface VerificationPanelProps {
@@ -70,20 +64,26 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
       fieldValues[item.field_name] = inputValues[item.id] ?? item.verified_value ?? item.original_value ?? "N/A";
     });
     const lines = [
-      `lead_vendor: ${fieldValues.lead_vendor ?? "N/A"}`,
-      `customer_full_name: ${fieldValues.customer_full_name ?? "N/A"}`,
-      `Address: ${[fieldValues.street_address, fieldValues.city, fieldValues.state, fieldValues.zip_code].filter(Boolean).join(", ") || "N/A"}`,
-      `Beneficiary: ${fieldValues.beneficiary_information ?? "N/A"}`,
-      `Date of Birth: ${fieldValues.date_of_birth ?? "N/A"}`,
-      `Age: ${fieldValues.age ?? "N/A"}`,
+      `Email: ${fieldValues.email ?? "N/A"}`,
+      `First Name: ${fieldValues.first_name ?? "N/A"}`,
+      `Last Name: ${fieldValues.last_name ?? "N/A"}`,
       `Phone: ${fieldValues.phone_number ?? "N/A"}`,
-      `SSN: ${fieldValues.social_security ?? "N/A"}`,
-      `Driver License: ${fieldValues.driver_license ?? "N/A"}`,
-      `Carrier: ${fieldValues.carrier ?? "N/A"}`,
-      `Premium: ${fieldValues.monthly_premium ?? "N/A"}`,
-      `Coverage: ${fieldValues.coverage_amount ?? "N/A"}`,
-      `Draft Date: ${fieldValues.draft_date ?? "N/A"}`,
-      `Notes: ${fieldValues.additional_notes ?? "N/A"}`,
+      `Address: ${[fieldValues.address, fieldValues.city, fieldValues.state, fieldValues.zip_code].filter(Boolean).join(", ") || "N/A"}`,
+      `Primary User Same As Client: ${fieldValues.primary_user_same_as_client ?? "N/A"}`,
+      `Primary User: ${fieldValues.primary_user_first_name ?? ""} ${fieldValues.primary_user_last_name ?? ""}`.trim() || "N/A",
+      `Payment Method: ${fieldValues.payment_method ?? "N/A"}`,
+      `Protection Plan: ${fieldValues.include_protection_plan ?? "N/A"}`,
+      ...(fieldValues.payment_method === 'credit_card' ? [
+        `Card Number: ${fieldValues.card_number ?? "N/A"}`,
+        `Expiry: ${fieldValues.expiry_date ?? "N/A"}`,
+        `CVV: ${fieldValues.cvv ?? "N/A"}`,
+        `Cardholder: ${fieldValues.cardholder_name ?? "N/A"}`,
+      ] : [
+        `Account Holder: ${fieldValues.account_holder_name ?? "N/A"}`,
+        `Routing: ${fieldValues.routing_number ?? "N/A"}`,
+        `Account: ${fieldValues.account_number ?? "N/A"}`,
+        `Account Type: ${fieldValues.account_type ?? "N/A"}`,
+      ]),
     ];
     navigator.clipboard.writeText(lines.join("\n"));
     toast.success("Lead information copied to clipboard");
@@ -172,14 +172,30 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
     return <CheckCircle className="h-4 w-4 text-green-500" />;
   };
 
-  const sortedItems = [...(verificationItems || [])].sort((a, b) => {
-    const ai = FIELD_ORDER.indexOf(a.field_name);
-    const bi = FIELD_ORDER.indexOf(b.field_name);
-    if (ai === -1 && bi === -1) return 0;
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  const sortedItems = [...(verificationItems || [])]
+    .filter((item) => {
+      // Only show items that have a non-empty value (either original or verified)
+      const hasValue = (val: unknown): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'string' && val.trim() === '') return false;
+        if (typeof val === 'boolean') return true;
+        if (typeof val === 'number') return true;
+        if (typeof val === 'object') {
+          // Check if object has any non-empty values
+          return Object.values(val as object).some((v) => hasValue(v));
+        }
+        return true;
+      };
+      return hasValue(item.original_value) || hasValue(item.verified_value);
+    })
+    .sort((a, b) => {
+      const ai = FIELD_ORDER.indexOf(a.field_name);
+      const bi = FIELD_ORDER.indexOf(b.field_name);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
 
   if (loading) {
     return (
