@@ -287,7 +287,7 @@ export function VerificationPanel({ sessionId, onTransferReady }: VerificationPa
 
       <div
         className="flex-1 overflow-y-auto p-4 space-y-4"
-        style={{ maxHeight: "calc(100vh - 420px)", minHeight: 400 }}
+        style={{ maxHeight: "calc(100vh - 280px)", minHeight: 300 }}
       >
         {sortedItems.map((item) => (
           <div key={item.id} className="space-y-2">
