@@ -197,7 +197,7 @@ interface DroppableStageColumnProps {
   onAddNoteClick?: (lead: Lead) => void;
   isOver?: boolean;
   stages: Stage[];
-  userRole: string | null;
+  userRole: UserRole | null;
   onLoadMore?: () => void;
   hasMore?: boolean;
   isLoading?: boolean;
