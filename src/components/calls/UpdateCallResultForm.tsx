@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/Button";
@@ -44,6 +44,19 @@ export function UpdateCallResultForm({
     });
 
     const applicationSubmitted = watch("application_submitted");
+
+    // Auto-select first status when application_submitted changes to "yes"
+    useEffect(() => {
+        if (applicationSubmitted === "yes" && !watch("status")) {
+            const pendingStages = stages.filter(stage => {
+                const nameLower = stage.name.toLowerCase().trim();
+                return nameLower.includes("pending") || nameLower.includes("approved");
+            });
+            if (pendingStages.length > 0) {
+                setValue("status", pendingStages[0].id, { shouldValidate: true });
+            }
+        }
+    }, [applicationSubmitted, stages, setValue, watch]);
 
     return (
         <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
@@ -131,7 +144,7 @@ export function UpdateCallResultForm({
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">
-                        Medalrt Agent who took the call <span className="text-destructive">*</span>
+                        MedAlert Agent who took the call <span className="text-destructive">*</span>
                     </label>
                     <select
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -177,14 +190,17 @@ export function UpdateCallResultForm({
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">
-                        Agent Notes <span className="text-destructive">*</span>
+                        Agent Notes {applicationSubmitted !== "yes" && <span className="text-destructive">*</span>}
+                        {applicationSubmitted === "yes" && <span className="text-muted-foreground text-xs"> (optional)</span>}
                     </label>
                     <textarea
                         className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         placeholder={
                             applicationSubmitted === "no"
                                 ? "Why the call got dropped or application not get submitted? Please provide the reason (required)"
-                                : "Enter call notes (required)"
+                                : applicationSubmitted === "app_fix"
+                                ? "What needs to be fixed? Please provide details (required)"
+                                : "Enter call notes (optional)"
                         }
                         {...register("notes")}
                     />
