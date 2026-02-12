@@ -106,9 +106,36 @@ export function useSubmitCallResult({ lead, agents, stages }: UseSubmitCallResul
                 if (dealError) throw dealError;
             }
 
-            // Send Slack notification
+            // Send Slack notification via edge function to lead vendor channel
             const agentName = agents.find(a => a.id === data.agent_who_took_call)?.full_name || "Unknown Agent";
             const stageName = stages.find(s => s.id === data.status)?.name || data.status;
+            
+            // Send notification to lead vendor Slack channel
+            try {
+                const { error: notifyError } = await supabase.functions.invoke(
+                    "call-result-notification",
+                    {
+                        body: {
+                            leadData: lead,
+                            callResult: {
+                                ...data,
+                                agent_who_took_call_name: agentName,
+                                status_name: stageName,
+                            },
+                        },
+                    }
+                );
+                
+                if (notifyError) {
+                    console.error("[Slack] Lead vendor notification failed:", notifyError);
+                } else {
+                    console.log("[Slack] Call result notification sent to lead vendor");
+                }
+            } catch (notifyErr) {
+                console.error("[Slack] Failed to send lead vendor notification:", notifyErr);
+            }
+
+            // Also send to general Slack notification (existing)
             const customerName = lead.first_name && lead.last_name 
               ? `${lead.first_name} ${lead.last_name}`.trim()
               : (lead as unknown as { customer_full_name?: string }).customer_full_name || "Unknown";
