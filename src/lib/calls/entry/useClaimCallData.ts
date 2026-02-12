@@ -102,10 +102,28 @@ export function useClaimCallData() {
 
     const fetchStages = async () => {
         try {
-            const { data, error } = await supabase
+            // First get the Transfer Portal pipeline ID
+            const { data: pipelines, error: pipelineError } = await supabase
+                .from("pipelines")
+                .select("id")
+                .eq("name", "Transfer Portal")
+                .maybeSingle();
+
+            if (pipelineError) throw pipelineError;
+
+            const transferPortalId = (pipelines as { id?: string } | null)?.id;
+
+            // Then fetch stages, filtering by Transfer Portal pipeline if found
+            let query = supabase
                 .from("stages")
                 .select("id, name, pipeline_id")
                 .order("order_index");
+
+            if (transferPortalId) {
+                query = query.eq("pipeline_id", transferPortalId);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
             setStages(data || []);
