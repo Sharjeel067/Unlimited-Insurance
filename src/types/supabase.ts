@@ -157,6 +157,7 @@ export interface Database {
           created_at: string
           updated_at: string
           last_contacted_at: string | null
+          eta_minutes: number | null
         }
         Insert: {
           id?: string
@@ -198,6 +199,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
           last_contacted_at?: string | null
+          eta_minutes?: number | null
         }
         Update: {
           id?: string
@@ -239,6 +241,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
           last_contacted_at?: string | null
+          eta_minutes?: number | null
         }
       }
       lead_notes: {

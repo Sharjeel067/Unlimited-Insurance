@@ -10,6 +10,7 @@ import { UpdateCallResultForm } from "@/components/calls/UpdateCallResultForm";
 import { StartVerificationModal } from "@/components/calls/StartVerificationModal";
 import { VerificationPanel } from "@/components/calls/VerificationPanel";
 import { TopVerificationProgress } from "@/components/calls/TopVerificationProgress";
+import { CallsInQueuePanel } from "@/components/calls/CallsInQueuePanel";
 import { getDefaultLead } from "@/lib/calls/entry/defaultLead";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -151,7 +152,7 @@ export default function ClaimCallPage() {
                                 onTransferReady={() => {}}
                             />
                         </div>
-                        <div className="h-full flex flex-col">
+                        <div className="h-full flex flex-col space-y-6">
                             <UpdateCallResultForm
                                 lead={lead}
                                 agents={agents}
@@ -160,6 +161,7 @@ export default function ClaimCallPage() {
                                 loading={submitLoading || loading}
                                 onSubmit={handleSubmit}
                             />
+                            <CallsInQueuePanel />
                         </div>
                     </div>
                 ) : submissionId ? (
