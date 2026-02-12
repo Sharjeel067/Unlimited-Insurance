@@ -282,6 +282,29 @@ export function StartVerificationModal({
         /* optional */
       }
 
+      // Send notification to lead vendor Slack channel
+      try {
+        if (leadRow) {
+          const { error: notifyError } = await supabase.functions.invoke(
+            "lead-vendor-notification",
+            {
+              body: {
+                leadData: leadRow,
+                notificationType: "verification_started",
+              },
+            }
+          );
+          
+          if (notifyError) {
+            console.error("Error sending verification notification:", notifyError);
+          } else {
+            console.log("Verification started notification sent to lead vendor");
+          }
+        }
+      } catch (notifyErr) {
+        console.error("Failed to send verification notification:", notifyErr);
+      }
+
       try {
         await supabase.functions.invoke("center-transfer-notification", {
           body: {

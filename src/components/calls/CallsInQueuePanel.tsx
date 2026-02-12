@@ -74,6 +74,15 @@ export function CallsInQueuePanel() {
     try {
       setUpdatingLeadId(leadId);
       
+      // First fetch full lead data for the notification
+      const { data: leadData, error: fetchError } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", leadId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from("leads")
         // @ts-ignore
@@ -81,6 +90,28 @@ export function CallsInQueuePanel() {
         .eq("id", leadId);
 
       if (error) throw error;
+
+      // Send Slack notification to lead vendor
+      try {
+        const { error: notifyError } = await supabase.functions.invoke(
+          "lead-vendor-notification",
+          {
+            body: {
+              leadData,
+              notificationType: "eta_assigned",
+              etaMinutes,
+            },
+          }
+        );
+        
+        if (notifyError) {
+          console.error("Error sending ETA notification:", notifyError);
+        } else {
+          console.log(`ETA notification sent for lead ${leadId}`);
+        }
+      } catch (notifyErr) {
+        console.error("Failed to send ETA notification:", notifyErr);
+      }
 
       // Update local state
       setLeads(prev => 
