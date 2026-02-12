@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Loader2, Save, Check, X, Wrench } from "lucide-react";
+import { Loader2, Save, Check, X, Wrench, ChevronDown, ChevronUp } from "lucide-react";
 import { updateCallResultSchema, UpdateCallResultFormData } from "@/lib/calls/entry/schema";
 import { Lead } from "@/lib/calls/entry/types";
 
@@ -23,6 +24,8 @@ export function UpdateCallResultForm({
     loading,
     onSubmit,
 }: UpdateCallResultFormProps) {
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    
     const {
         register,
         handleSubmit,
@@ -43,10 +46,33 @@ export function UpdateCallResultForm({
     const applicationSubmitted = watch("application_submitted");
 
     return (
-        <div className="bg-card rounded-lg border border-border shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-6">Update Call Result</h3>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+            <div 
+                className="p-4 border-b border-border flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+                <h3 className="text-lg font-semibold text-foreground">Update Call Result</h3>
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    type="button"
+                    className="h-8 w-8 p-0"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCollapsed(!isCollapsed);
+                    }}
+                >
+                    {isCollapsed ? (
+                        <ChevronDown className="h-5 w-5" />
+                    ) : (
+                        <ChevronUp className="h-5 w-5" />
+                    )}
+                </Button>
+            </div>
+            
+            {!isCollapsed && (
+                <div className="p-6">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="space-y-3">
                     <label className="text-sm font-medium text-foreground">
                         Was the application submitted? <span className="text-destructive">*</span>
@@ -183,6 +209,8 @@ export function UpdateCallResultForm({
                     </Button>
                 </div>
             </form>
+                </div>
+            )}
         </div>
     );
 }
