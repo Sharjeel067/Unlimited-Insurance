@@ -145,14 +145,14 @@ export default function ClaimCallPage() {
                 </div>
 
                 {showVerificationPanel && verificationSessionId ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start min-h-[600px]">
-                        <div className="h-full flex flex-col">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                        <div className="flex flex-col">
                             <VerificationPanel
                                 sessionId={verificationSessionId}
                                 onTransferReady={() => {}}
                             />
                         </div>
-                        <div className="h-full flex flex-col space-y-6">
+                        <div className="flex flex-col space-y-6">
                             <UpdateCallResultForm
                                 lead={lead}
                                 agents={agents}

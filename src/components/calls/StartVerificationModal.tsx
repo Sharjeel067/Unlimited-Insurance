@@ -199,44 +199,46 @@ export function StartVerificationModal({
       };
 
       const fields: { field_name: string; field_category: string; original_value: string }[] = [
-        // Client Information
-        { field_name: "email", field_category: "client", original_value: get("email") },
+        // 1. Protection Plan
+        { field_name: "protection_plan_included", field_category: "product", original_value: get("protection_plan_included") },
+        { field_name: "protection_plan_cost", field_category: "product", original_value: get("protection_plan_cost") },
+        // 2-3. First & Last Name
         { field_name: "first_name", field_category: "client", original_value: get("first_name") },
         { field_name: "last_name", field_category: "client", original_value: get("last_name") },
-        { field_name: "phone_number", field_category: "client", original_value: get("phone_number") },
+        // 4. Mailing Address
         { field_name: "address", field_category: "client", original_value: get("address") },
         { field_name: "city", field_category: "client", original_value: get("city") },
         { field_name: "state", field_category: "client", original_value: get("state") },
         { field_name: "zip_code", field_category: "client", original_value: get("zip_code") },
-        // Primary User Information
+        // 5. Phone with DNC & TCPA
+        { field_name: "phone_number", field_category: "client", original_value: get("phone_number") },
+        { field_name: "dnc_status", field_category: "compliance", original_value: get("dnc_status") },
+        { field_name: "tcpa_consent", field_category: "compliance", original_value: get("tcpa_consent") },
+        // 6-7. Email & Password
+        { field_name: "email", field_category: "client", original_value: get("email") },
+        { field_name: "client_password", field_category: "client", original_value: get("client_password") },
+        // 8. Primary User
         { field_name: "primary_user_same_as_client", field_category: "primary_user", original_value: get("primary_user_same_as_client") },
         { field_name: "primary_user_first_name", field_category: "primary_user", original_value: get("primary_user_first_name") },
         { field_name: "primary_user_last_name", field_category: "primary_user", original_value: get("primary_user_last_name") },
-        // Product Information
-        { field_name: "company_name", field_category: "product", original_value: get("company_name") },
-        { field_name: "quoted_product", field_category: "product", original_value: get("quoted_product") },
-        { field_name: "device_cost", field_category: "product", original_value: get("device_cost") },
-        { field_name: "discounted_device_cost", field_category: "product", original_value: get("discounted_device_cost") },
-        { field_name: "shipping_cost", field_category: "product", original_value: get("shipping_cost") },
-        { field_name: "monthly_subscription", field_category: "product", original_value: get("monthly_subscription") },
-        // Payment Information
+        // 9. Payment Method (determines which billing fields show)
         { field_name: "payment_method", field_category: "payment", original_value: get("payment_method") },
-        { field_name: "protection_plan_included", field_category: "payment", original_value: get("protection_plan_included") },
-        // Credit Card (if applicable)
-        { field_name: "card_number", field_category: "payment", original_value: get("card_number_last_four") },
-        { field_name: "card_expiry", field_category: "payment", original_value: get("card_expiry") },
+        // Credit Card Fields
         { field_name: "cardholder_name", field_category: "payment", original_value: get("cardholder_name") },
-        // ACH/Bank Transfer (if applicable)
+        { field_name: "card_number", field_category: "payment", original_value: get("card_number") },
+        { field_name: "card_expiry", field_category: "payment", original_value: get("card_expiry") },
+        // ACH Fields
         { field_name: "account_holder_name", field_category: "payment", original_value: get("account_holder_name") },
         { field_name: "routing_number", field_category: "payment", original_value: get("routing_number") },
         { field_name: "account_number", field_category: "payment", original_value: get("account_number") },
         { field_name: "account_type", field_category: "payment", original_value: get("account_type") },
         { field_name: "bank_name", field_category: "payment", original_value: get("bank_name") },
-        // Lead Info
-        { field_name: "lead_vendor", field_category: "lead", original_value: get("lead_vendor") },
-        { field_name: "center_user_name", field_category: "lead", original_value: get("center_user_name") },
-        { field_name: "source", field_category: "lead", original_value: get("source") },
-        { field_name: "form_version", field_category: "lead", original_value: get("form_version") },
+        // Product Information
+        { field_name: "company_name", field_category: "product", original_value: get("company_name") },
+        { field_name: "quoted_product", field_category: "product", original_value: get("quoted_product") },
+        { field_name: "device_cost", field_category: "product", original_value: get("device_cost") },
+        { field_name: "shipping_cost", field_category: "product", original_value: get("shipping_cost") },
+        { field_name: "monthly_subscription", field_category: "product", original_value: get("monthly_subscription") },
         // Totals
         { field_name: "total_upfront_cost", field_category: "totals", original_value: get("total_upfront_cost") },
         { field_name: "total_monthly_cost", field_category: "totals", original_value: get("total_monthly_cost") },
