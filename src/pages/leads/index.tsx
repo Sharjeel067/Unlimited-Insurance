@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, User, Calendar, Phone, MapPin, Plus, Pencil, Trash2, Upload, Search, Filter, X } from "lucide-react";
+import { Loader2, User, Calendar, Phone, MapPin, Plus, Pencil, Trash2, Upload, Search, Filter, X, Smartphone } from "lucide-react";
 import { format } from "date-fns";
 import { useRouter } from "next/router";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -236,6 +236,10 @@ export default function LeadsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button onClick={() => router.push("/leads/createBayAlarmLead")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add new lead
+          </Button>
           {canCreateLead(userRole) && (
             <>
               <Button variant="outline" onClick={() => setBulkUploadModalOpen(true)}>
